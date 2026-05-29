@@ -13,8 +13,8 @@ class HabitLogRepositoryImpl implements IHabitLogRepository {
   final FirestoreDataSource _remote;
 
   @override
-  Stream<List<HabitLogEntity>> watchLogs(String habitId) {
-    return _remote.watchHabitLogs(habitId).map(
+  Stream<List<HabitLogEntity>> watchLogs(String habitId, String userId) {
+    return _remote.watchHabitLogs(habitId, userId).map(
       (models) => models.map((m) => m.toEntity()).toList(),
     );
   }
@@ -31,9 +31,9 @@ class HabitLogRepositoryImpl implements IHabitLogRepository {
   }
 
   @override
-  Future<Either<Failure, List<HabitLogEntity>>> getLogs(String habitId) async {
+  Future<Either<Failure, List<HabitLogEntity>>> getLogs(String habitId, String userId) async {
     try {
-      final models = await _remote.getHabitLogs(habitId);
+      final models = await _remote.getHabitLogs(habitId, userId);
       return Right(models.map((m) => m.toEntity()).toList());
     } catch (e) {
       return Left(mapExceptionToFailure(e));
@@ -46,7 +46,7 @@ class HabitLogRepositoryImpl implements IHabitLogRepository {
     String userId,
   ) async {
     try {
-      final models = await _remote.getHabitLogs(habitId);
+      final models = await _remote.getHabitLogs(habitId, userId);
       if (models.isEmpty) {
         return const Right(0);
       }

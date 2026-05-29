@@ -26,9 +26,25 @@ service cloud.firestore {
         allow create, update, delete: if isOwner(userId);
       }
 
-      match /posts/{postId} {
+      match /habit_logs/{logId} {
         allow read: if isSignedIn();
         allow create, update, delete: if isOwner(userId);
+      }
+
+      match /shared_habits/{shareId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn(); // Any user can share a habit with another user
+        allow update, delete: if isOwner(userId); // Only the user it's shared with can modify/delete it
+      }
+
+      match /posts/{postId} {
+        allow read: if isSignedIn();
+        allow create, delete: if isOwner(userId);
+        allow update: if isOwner(userId)
+          || (
+            isSignedIn()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['like_count', 'comment_count'])
+          );
 
         match /likes/{likeUserId} {
           allow read: if isSignedIn();
@@ -103,6 +119,24 @@ service cloud.firestore {
         && request.resource.data.owner_id == request.auth.uid;
       allow delete: if isSignedIn()
         && resource.data.owner_id == request.auth.uid;
+    }
+
+    // Rule for posts collection group:
+    // Allows collectionGroup('posts') reads to succeed for authenticated users.
+    // Writes are only allowed via the user-centric nested path rule under /users/{userId}/posts/{postId}.
+    match /{path=**}/posts/{postId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if false;
+
+      match /likes/{likeUserId} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if false;
+      }
+
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if false;
+      }
     }
   }
 }

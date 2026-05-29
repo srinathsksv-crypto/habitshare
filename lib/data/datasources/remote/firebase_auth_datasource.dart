@@ -8,16 +8,16 @@ class FirebaseAuthDataSource {
   FirebaseAuthDataSource({
     FirebaseAuth? firebaseAuth,
     GoogleSignIn? googleSignIn,
-  }) : _auth = firebaseAuth ?? FirebaseAuth.instance,
-       _googleSignIn = googleSignIn;
+  })  : _auth = firebaseAuth ?? FirebaseAuth.instance,
+        _googleSignIn = googleSignIn;
 
   final FirebaseAuth _auth;
   final GoogleSignIn? _googleSignIn;
 
   Stream<UserModel?> watchAuthState() {
     return _auth.authStateChanges().map(
-      (user) => user == null ? null : UserModel.fromFirebaseUser(user),
-    );
+          (user) => user == null ? null : UserModel.fromFirebaseUser(user),
+        );
   }
 
   Future<UserModel> signInWithEmail({

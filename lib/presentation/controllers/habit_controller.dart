@@ -86,6 +86,20 @@ class HabitController {
     );
   }
 
+  Future<String?> deleteHabit(HabitEntity habit) async {
+    final result = await _ref.read(habitRepositoryProvider).deleteHabit(
+          userId: habit.userId,
+          habitId: habit.id,
+        );
+    return result.fold(
+      (failure) => failure.message,
+      (_) {
+        _invalidateHabits(habit.userId);
+        return null;
+      },
+    );
+  }
+
   void _invalidateHabits(String userId) {
     _ref.invalidate(habitsProvider(userId));
     _ref.invalidate(habitsStreamProvider(userId));

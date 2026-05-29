@@ -1,0 +1,24 @@
+{
+  "name": "habitshare",
+  "version": "1.0.0",
+  "description": "Flutter habit-sharing app with Firebase, Riverpod, and clean architecture.",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/srinath50/habitshare.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/srinath50/habitshare/issues"
+  },
+  "homepage": "https://github.com/srinath50/habitshare#readme"
+}

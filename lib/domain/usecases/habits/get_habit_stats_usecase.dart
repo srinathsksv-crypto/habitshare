@@ -25,7 +25,7 @@ class GetHabitStatsUseCase {
     required String userId,
     int lookbackDays = 30,
   }) async {
-    final logsResult = await _repository.getLogs(habitId);
+    final logsResult = await _repository.getLogs(habitId, userId);
     final streakResult = await _repository.getStreak(habitId, userId);
 
     return logsResult.fold(

@@ -20,6 +20,12 @@ class FirestorePaths {
   CollectionReference<Map<String, dynamic>> habits(String userId) =>
       user(userId).collection(AppConstants.habitsSubcollection);
 
+  CollectionReference<Map<String, dynamic>> habitLogs(String userId) =>
+      user(userId).collection(AppConstants.habitLogsSubcollection);
+
+  CollectionReference<Map<String, dynamic>> sharedHabits(String userId) =>
+      user(userId).collection(AppConstants.sharedHabitsSubcollection);
+
   CollectionReference<Map<String, dynamic>> posts(String userId) =>
       user(userId).collection(AppConstants.postsSubcollection);
 

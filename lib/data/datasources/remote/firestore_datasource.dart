@@ -32,11 +32,15 @@ class FirestoreDataSource {
   final FirebaseStorage _storage;
   late final FirestorePaths _paths = FirestorePaths(_firestore);
 
-  CollectionReference<Map<String, dynamic>> get _habitLogs =>
-      _firestore.collection(AppConstants.habitLogsCollection);
+  String _requireAuthUid() {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || uid.isEmpty) {
+      throw const AuthException('You must be signed in to perform this action');
+    }
+    return uid;
+  }
 
-  CollectionReference<Map<String, dynamic>> get _sharedHabits =>
-      _firestore.collection(AppConstants.sharedHabitsCollection);
+
 
   HabitModel _habitFromDoc(
     QueryDocumentSnapshot<Map<String, dynamic>> doc, {
@@ -101,8 +105,10 @@ class FirestoreDataSource {
       await doc.set(data);
       return habit.copyWith(id: doc.id);
     } on FirebaseException catch (e) {
-      throw ServerException(e.message ?? 'Failed to create habit',
-          code: e.code);
+      throw ServerException(
+        e.message ?? 'Failed to create habit',
+        code: e.code,
+      );
     }
   }
 
@@ -114,8 +120,10 @@ class FirestoreDataSource {
       await _paths.habits(habit.userId).doc(habit.id).update(data);
       return habit.copyWith(updatedAt: DateTime.now());
     } on FirebaseException catch (e) {
-      throw ServerException(e.message ?? 'Failed to update habit',
-          code: e.code);
+      throw ServerException(
+        e.message ?? 'Failed to update habit',
+        code: e.code,
+      );
     }
   }
 
@@ -124,15 +132,37 @@ class FirestoreDataSource {
     required String habitId,
   }) async {
     try {
-      await _paths.habits(userId).doc(habitId).delete();
+      final batch = _firestore.batch();
+      
+      // Delete the habit
+      final habitRef = _paths.habits(userId).doc(habitId);
+      batch.delete(habitRef);
+      
+      // Delete related posts
+      final postsSnapshot = await _paths.posts(userId).where('habit_id', isEqualTo: habitId).get();
+      for (final doc in postsSnapshot.docs) {
+        batch.delete(doc.reference);
+        // Note: cloud functions or a recursive delete might be better if posts have subcollections (likes/comments),
+        // but batch deleting the document itself will hide it from the feed.
+      }
+      
+      // Delete related habit logs
+      final logsSnapshot = await _paths.habitLogs(userId).where('habit_id', isEqualTo: habitId).get();
+      for (final doc in logsSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      await batch.commit();
     } on FirebaseException catch (e) {
-      throw ServerException(e.message ?? 'Failed to delete habit',
-          code: e.code);
+      throw ServerException(
+        e.message ?? 'Failed to delete habit',
+        code: e.code,
+      );
     }
   }
 
-  Stream<List<HabitLogModel>> watchHabitLogs(String habitId) {
-    return _habitLogs
+  Stream<List<HabitLogModel>> watchHabitLogs(String habitId, String userId) {
+    return _paths.habitLogs(userId)
         .where('habit_id', isEqualTo: habitId)
         .orderBy('logged_at', descending: true)
         .snapshots()
@@ -145,9 +175,9 @@ class FirestoreDataSource {
         );
   }
 
-  Future<List<HabitLogModel>> getHabitLogs(String habitId) async {
+  Future<List<HabitLogModel>> getHabitLogs(String habitId, String userId) async {
     try {
-      final snapshot = await _habitLogs
+      final snapshot = await _paths.habitLogs(userId)
           .where('habit_id', isEqualTo: habitId)
           .orderBy('logged_at', descending: true)
           .get();
@@ -161,7 +191,8 @@ class FirestoreDataSource {
 
   Future<HabitLogModel> createHabitLog(HabitLogModel log) async {
     try {
-      final doc = log.id.isEmpty ? _habitLogs.doc() : _habitLogs.doc(log.id);
+      final collection = _paths.habitLogs(log.userId);
+      final doc = log.id.isEmpty ? collection.doc() : collection.doc(log.id);
       final data = log.copyWith(id: doc.id).toJson()..remove('id');
       await doc.set(data);
       return log.copyWith(id: doc.id);
@@ -172,7 +203,8 @@ class FirestoreDataSource {
 
   Future<SharedHabitModel> shareHabit(SharedHabitModel shared) async {
     try {
-      final doc = _sharedHabits.doc();
+      final collection = _paths.sharedHabits(shared.sharedWithUserId);
+      final doc = collection.doc();
       final data = shared.copyWith(id: doc.id).toJson()..remove('id');
       await doc.set(data);
       return shared.copyWith(id: doc.id);
@@ -183,8 +215,7 @@ class FirestoreDataSource {
 
   Future<List<SharedHabitModel>> getSharedHabits(String userId) async {
     try {
-      final snapshot = await _sharedHabits
-          .where('shared_with_user_id', isEqualTo: userId)
+      final snapshot = await _paths.sharedHabits(userId)
           .orderBy('shared_at', descending: true)
           .get();
       return snapshot.docs
@@ -201,8 +232,7 @@ class FirestoreDataSource {
   }
 
   Stream<List<SharedHabitModel>> watchSharedHabits(String userId) {
-    return _sharedHabits
-        .where('shared_with_user_id', isEqualTo: userId)
+    return _paths.sharedHabits(userId)
         .orderBy('shared_at', descending: true)
         .snapshots()
         .map(
@@ -342,8 +372,10 @@ class FirestoreDataSource {
         return name.contains(lower);
       }).toList();
     } on FirebaseException catch (e) {
-      throw ServerException(e.message ?? 'Failed to search users',
-          code: e.code);
+      throw ServerException(
+        e.message ?? 'Failed to search users',
+        code: e.code,
+      );
     }
   }
 
@@ -358,6 +390,10 @@ class FirestoreDataSource {
     dynamic imageFile,
   }) async {
     try {
+      final authUid = _requireAuthUid();
+      if (authUid != userId) {
+        throw const AuthException('Authenticated user mismatch while creating post');
+      }
       final doc = _paths.posts(userId).doc();
       final createdAt = DateTime.now();
 
@@ -384,6 +420,7 @@ class FirestoreDataSource {
         'comment_count': 0,
       };
       await doc.set(data);
+      AppLogger.info('Post created: ${doc.id} for user $userId');
       final post = HabitPostEntity(
         id: doc.id,
         userId: userId,
@@ -403,7 +440,8 @@ class FirestoreDataSource {
         postId: doc.id,
       );
       return post;
-    } on FirebaseException catch (e) {
+    } on FirebaseException catch (e, stack) {
+      AppLogger.error('createPost failed', e, stack);
       throw ServerException(e.message ?? 'Failed to create post', code: e.code);
     }
   }
@@ -435,33 +473,26 @@ class FirestoreDataSource {
         .limit(100)
         .snapshots()
         .asyncMap((postSnapshot) async {
-      final visibleUserIds = await _visibleUserIdsForViewer(
-        viewerId: viewerId,
-        profileUserId: profileUserId,
-      );
-      if (visibleUserIds.isEmpty) {
+      try {
+        final visibleUserIds = await _visibleUserIdsForViewer(
+          viewerId: viewerId,
+          profileUserId: profileUserId,
+        );
+        if (visibleUserIds.isEmpty) {
+          return <HabitPostEntity>[];
+        }
+
+        final postFutures = postSnapshot.docs
+            .where((doc) => visibleUserIds.contains(doc.data()['user_id']))
+            .map((doc) => _postFromDoc(doc, viewerId: viewerId));
+        final currentPosts = await Future.wait(postFutures);
+        
+        AppLogger.debug('Feed: fetched ${currentPosts.length} posts for viewer $viewerId');
+        return currentPosts;
+      } catch (e, stack) {
+        AppLogger.error('Feed error: failed to fetch posts', e, stack);
         return <HabitPostEntity>[];
       }
-
-      final postFutures = postSnapshot.docs
-          .where((doc) => visibleUserIds.contains(doc.data()['user_id']))
-          .map((doc) => _postFromDoc(doc, viewerId: viewerId));
-      final currentPosts = await Future.wait(postFutures);
-      if (currentPosts.isNotEmpty) {
-        return currentPosts;
-      }
-
-      // Backward compatibility: read legacy top-level posts if new structure
-      // has not been populated yet.
-      final legacySnapshot = await _firestore
-          .collection('posts')
-          .orderBy('created_at', descending: true)
-          .limit(100)
-          .get();
-      final legacyFutures = legacySnapshot.docs
-          .where((doc) => visibleUserIds.contains(doc.data()['user_id']))
-          .map((doc) => _postFromDoc(doc, viewerId: viewerId));
-      return Future.wait(legacyFutures);
     });
   }
 
@@ -566,6 +597,10 @@ class FirestoreDataSource {
     String? likerPhotoUrl,
   }) async {
     try {
+      final authUid = _requireAuthUid();
+      if (authUid != userId) {
+        throw const AuthException('Authenticated user mismatch while toggling like');
+      }
       final postRef = _paths.post(userId: postOwnerId, postId: postId);
       final likeRef =
           postRef.collection(AppConstants.likesSubcollection).doc(userId);
@@ -574,7 +609,7 @@ class FirestoreDataSource {
       await _firestore.runTransaction((transaction) async {
         final postSnap = await transaction.get(postRef);
         if (!postSnap.exists) {
-          throw ServerException('Post not found');
+          throw const ServerException('Post not found');
         }
         final likeSnap = await transaction.get(likeRef);
         if (likeSnap.exists) {
@@ -604,7 +639,8 @@ class FirestoreDataSource {
           postId: postId,
         );
       }
-    } on FirebaseException catch (e) {
+    } on FirebaseException catch (e, stack) {
+      AppLogger.error('toggleLike failed for post $postId', e, stack);
       throw ServerException(e.message ?? 'Failed to toggle like', code: e.code);
     }
   }
@@ -644,6 +680,10 @@ class FirestoreDataSource {
     String? authorPhotoUrl,
   }) async {
     try {
+      final authUid = _requireAuthUid();
+      if (authUid != userId) {
+        throw const AuthException('Authenticated user mismatch while adding comment');
+      }
       final postRef = _paths.post(userId: postOwnerId, postId: postId);
       final commentRef =
           postRef.collection(AppConstants.commentsSubcollection).doc();
@@ -683,7 +723,8 @@ class FirestoreDataSource {
         authorName: authorName,
         authorPhotoUrl: authorPhotoUrl,
       );
-    } on FirebaseException catch (e) {
+    } on FirebaseException catch (e, stack) {
+      AppLogger.error('addComment failed for post $postId', e, stack);
       throw ServerException(e.message ?? 'Failed to add comment', code: e.code);
     }
   }
@@ -693,6 +734,10 @@ class FirestoreDataSource {
     required String followingId,
   }) async {
     try {
+      final authUid = _requireAuthUid();
+      if (authUid != followerId) {
+        throw const AuthException('Authenticated user mismatch while sending follow request');
+      }
       final existing =
           await _paths.following(followerId).doc(followingId).get();
       if (existing.exists) {
@@ -715,7 +760,8 @@ class FirestoreDataSource {
         senderName: followerData?['display_name'] as String?,
         senderPhotoUrl: FirestorePaths.readImageUrl(followerData),
       );
-    } on FirebaseException catch (e) {
+    } on FirebaseException catch (e, stack) {
+      AppLogger.error('sendFollowRequest failed: $followerId -> $followingId', e, stack);
       throw ServerException(
         e.message ?? 'Failed to send follow request',
         code: e.code,
@@ -730,6 +776,10 @@ class FirestoreDataSource {
     String? followingPhotoUrl,
   }) async {
     try {
+      final authUid = _requireAuthUid();
+      if (authUid != followingId) {
+        throw const AuthException('Authenticated user mismatch while accepting request');
+      }
       final update = {
         'status': AppConstants.followStatusAccepted,
         'accepted_at': DateTime.now().toIso8601String(),
@@ -743,8 +793,8 @@ class FirestoreDataSource {
         senderName: followingName,
         senderPhotoUrl: followingPhotoUrl,
       );
-    } on FirebaseException catch (e) {
-      AppLogger.error('acceptFollowRequest failed', e);
+    } on FirebaseException catch (e, stack) {
+      AppLogger.error('acceptFollowRequest failed', e, stack);
       throw ServerException(
         e.message ?? 'Failed to accept request',
         code: e.code,
@@ -757,10 +807,14 @@ class FirestoreDataSource {
     required String followingId,
   }) async {
     try {
+      final authUid = _requireAuthUid();
+      if (authUid != followingId && authUid != followerId) {
+        throw const AuthException('Authenticated user mismatch while rejecting request');
+      }
       await _paths.followers(followingId).doc(followerId).delete();
       await _paths.following(followerId).doc(followingId).delete();
-    } on FirebaseException catch (e) {
-      AppLogger.error('rejectFollowRequest failed', e);
+    } on FirebaseException catch (e, stack) {
+      AppLogger.error('rejectFollowRequest failed', e, stack);
       throw ServerException(
         e.message ?? 'Failed to reject request',
         code: e.code,
@@ -1015,14 +1069,17 @@ class FirestoreDataSource {
       // Use merge:true so re-sending the same notification doesn't wipe receiver state.
       // We intentionally omit `is_read` so if the receiver has already opened it,
       // we don't reset the read flag on duplicates.
-      await _paths.notifications(receiverId).doc(docId).set({
-        'type': type.name,
-        'sender_id': senderId,
-        'sender_name': senderName,
-        'sender_photo_url': senderPhotoUrl,
-        'post_id': postId,
-        'created_at': DateTime.now().toIso8601String(),
-      }, SetOptions(merge: true));
+      await _paths.notifications(receiverId).doc(docId).set(
+        {
+          'type': type.name,
+          'sender_id': senderId,
+          'sender_name': senderName,
+          'sender_photo_url': senderPhotoUrl,
+          'post_id': postId,
+          'created_at': DateTime.now().toIso8601String(),
+        },
+        SetOptions(merge: true),
+      );
     } on FirebaseException catch (e) {
       AppLogger.warning('Notification create skipped: ${e.message}');
     }

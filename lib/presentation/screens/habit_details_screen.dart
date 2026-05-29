@@ -51,6 +51,45 @@ class HabitDetailsScreen extends ConsumerWidget {
     Navigator.of(context).pop();
   }
 
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete habit?'),
+        content: const Text(
+          'This will permanently delete this habit and all its posts. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+              foregroundColor: Theme.of(ctx).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+    final error = await ref.read(habitControllerProvider).deleteHabit(habit);
+    if (!context.mounted) {
+      return;
+    }
+    if (error != null) {
+      context.showSnackBar(error, isError: true);
+      return;
+    }
+    context.showSnackBar('Habit deleted');
+    Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final start = habit.startDate ?? habit.createdAt;
@@ -84,11 +123,21 @@ class HabitDetailsScreen extends ConsumerWidget {
             _InfoRow(label: 'Duration', value: '$duration days'),
           _InfoRow(label: 'Status', value: habit.status.name),
           const SizedBox(height: 24),
-          if (habit.isActive)
+          if (habit.isActive) ...[
             FilledButton.tonal(
               onPressed: () => _confirmQuit(context, ref),
               child: const Text('Quit habit'),
             ),
+            const SizedBox(height: 12),
+          ],
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: context.colors.error,
+              side: BorderSide(color: context.colors.error),
+            ),
+            onPressed: () => _confirmDelete(context, ref),
+            child: const Text('Delete habit'),
+          ),
         ],
       ),
     );

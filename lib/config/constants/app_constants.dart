@@ -8,6 +8,8 @@ class AppConstants {
 
   // Subcollections under users/{userId}
   static const String habitsSubcollection = 'habits';
+  static const String habitLogsSubcollection = 'habit_logs';
+  static const String sharedHabitsSubcollection = 'shared_habits';
   static const String postsSubcollection = 'posts';
   static const String notificationsSubcollection = 'notifications';
   static const String followersSubcollection = 'followers';
