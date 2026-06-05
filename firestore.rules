@@ -102,6 +102,16 @@ service cloud.firestore {
             || followingId == request.auth.uid
           );
       }
+
+      match /fcm_tokens/{tokenId} {
+        allow read: if isSignedIn();
+        allow write: if isOwner(userId);
+      }
+
+      match /settings/notifications {
+        allow read: if isSignedIn();
+        allow write: if isOwner(userId);
+      }
     }
 
     // Legacy top-level collections (read-only fallback / old data)
@@ -137,6 +147,14 @@ service cloud.firestore {
         allow read: if isSignedIn();
         allow create, update, delete: if false;
       }
+    }
+
+    // Rule for notifications collection group:
+    // Allows users to query notifications where they are the sender_id.
+    // This is used when a user updates their profile photo to update their photo in previous notifications.
+    match /{path=**}/notifications/{notificationId} {
+      allow read: if isSignedIn() && resource.data.sender_id == request.auth.uid;
+      allow create, update, delete: if false;
     }
   }
 }

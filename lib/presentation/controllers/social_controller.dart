@@ -5,6 +5,7 @@ import 'package:habitshare/domain/entities/habit_post_entity.dart';
 import 'package:habitshare/domain/entities/user_entity.dart';
 import 'package:habitshare/domain/repositories/social_repository.dart';
 import 'package:habitshare/presentation/providers/auth_provider.dart';
+import 'package:habitshare/presentation/providers/profile_image_provider.dart';
 import 'package:habitshare/presentation/providers/notification_provider.dart';
 import 'package:habitshare/presentation/providers/social_provider.dart';
 import 'package:habitshare/presentation/providers/user_profile_provider.dart';
@@ -159,12 +160,35 @@ class SocialController {
   Future<String?> uploadProfilePhoto({
     required String userId,
     required File file,
+    String? oldPhotoUrl,
   }) async {
-    final result = await _repo.uploadProfileImage(userId: userId, file: file);
-    return result.fold((f) => f.message, (_) {
+    // Fetch the absolute latest user profile to ensure we delete the correct old photo,
+    // avoiding orphaned images if the user uploads multiple times quickly and local state is stale.
+    String? latestOldPhotoUrl = oldPhotoUrl;
+    final profileResult = await _repo.getUserProfile(userId);
+    profileResult.fold(
+      (_) {}, // Ignore errors, fallback to provided oldPhotoUrl
+      (profile) {
+        if (profile != null) {
+          latestOldPhotoUrl = profile.photoUrl;
+        }
+      },
+    );
+
+    final result = await _repo.uploadProfileImage(
+      userId: userId, 
+      file: file,
+      oldPhotoUrl: latestOldPhotoUrl,
+    );
+    return result.fold((f) => f.message, (path) {
       _ref.invalidate(userProfileProvider(userId));
       _ref.invalidate(authStateProvider);
       _ref.invalidate(feedProvider(userId));
+      _ref.invalidate(userProfileProvider);
+      _ref.invalidate(profileImageUrlProvider(path));
+      if (latestOldPhotoUrl != null && latestOldPhotoUrl!.isNotEmpty) {
+        _ref.invalidate(profileImageUrlProvider(latestOldPhotoUrl!));
+      }
       return null;
     });
   }

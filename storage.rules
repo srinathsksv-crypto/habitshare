@@ -3,13 +3,11 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Corrected rule for user profile images:
-    // This allows authenticated users to read and write their own profile image,
-    // assuming the image is named with their UID followed by ".jpg"
-    // (e.g., /profiles/someUserId.jpg).
+    // Profile images: any authenticated user can read (so followers can see
+    // other users' avatars), but only the owner can write their own image.
     match /profiles/{filename} {
-      allow read: if request.auth != null && filename == request.auth.uid + '.jpg';
-      allow write: if request.auth != null && filename == request.auth.uid + '.jpg';
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && filename.matches(request.auth.uid + '.*');
     }
 
     // Rule for posts:

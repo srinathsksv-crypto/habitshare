@@ -19,6 +19,11 @@ sealed class HabitModel with _$HabitModel {
     @Default('active') String status,
     @JsonKey(name: 'start_date') DateTime? startDate,
     @JsonKey(name: 'end_date') DateTime? endDate,
+    @JsonKey(name: 'streak_count') @Default(0) int streakCount,
+    @JsonKey(name: 'last_completed_at') DateTime? lastCompletedAt,
+    @JsonKey(name: 'last_completed_window_index')
+    @Default(0)
+    int lastCompletedWindowIndex,
     @JsonKey(name: 'created_at') required DateTime createdAt,
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
   }) = _HabitModel;
@@ -41,6 +46,9 @@ extension HabitModelX on HabitModel {
         status: _parseStatus(status),
         startDate: startDate ?? createdAt,
         endDate: endDate,
+        streakCount: streakCount,
+        lastCompletedAt: lastCompletedAt,
+        lastCompletedWindowIndex: lastCompletedWindowIndex,
         createdAt: createdAt,
         updatedAt: updatedAt,
       );
@@ -58,6 +66,9 @@ extension HabitModelX on HabitModel {
         status: entity.status.name,
         startDate: entity.startDate,
         endDate: entity.endDate,
+        streakCount: entity.streakCount,
+        lastCompletedAt: entity.lastCompletedAt,
+        lastCompletedWindowIndex: entity.lastCompletedWindowIndex,
         createdAt: entity.createdAt,
         updatedAt: entity.updatedAt,
       );

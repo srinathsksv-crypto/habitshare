@@ -9,7 +9,6 @@ class HabitEntity extends Equatable {
     required this.id,
     required this.userId,
     required this.title,
-    required this.createdAt,
     this.description,
     this.categoryId,
     this.colorHex = '#6750A4',
@@ -20,6 +19,10 @@ class HabitEntity extends Equatable {
     this.startDate,
     this.endDate,
     this.updatedAt,
+    this.streakCount = 0,
+    this.lastCompletedAt,
+    this.lastCompletedWindowIndex = 0,
+    required this.createdAt,
   });
 
   final String id;
@@ -34,6 +37,9 @@ class HabitEntity extends Equatable {
   final HabitStatus status;
   final DateTime? startDate;
   final DateTime? endDate;
+  final int streakCount;
+  final DateTime? lastCompletedAt;
+  final int lastCompletedWindowIndex;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -53,6 +59,9 @@ class HabitEntity extends Equatable {
     String? description,
     HabitStatus? status,
     bool? isArchived,
+    int? streakCount,
+    DateTime? lastCompletedAt,
+    int? lastCompletedWindowIndex,
     DateTime? startDate,
     DateTime? endDate,
     DateTime? updatedAt,
@@ -69,6 +78,10 @@ class HabitEntity extends Equatable {
       isArchived: isArchived ?? this.isArchived,
       status: status ?? this.status,
       startDate: startDate ?? this.startDate,
+      streakCount: streakCount ?? this.streakCount,
+      lastCompletedAt: lastCompletedAt ?? this.lastCompletedAt,
+      lastCompletedWindowIndex:
+          lastCompletedWindowIndex ?? this.lastCompletedWindowIndex,
       endDate: endDate ?? this.endDate,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -89,6 +102,9 @@ class HabitEntity extends Equatable {
         status,
         startDate,
         endDate,
+        streakCount,
+        lastCompletedAt,
+        lastCompletedWindowIndex,
         createdAt,
         updatedAt,
       ];

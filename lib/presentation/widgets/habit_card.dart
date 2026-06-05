@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:habitshare/core/utils/date_utils.dart';
 import 'package:habitshare/domain/entities/habit_entity.dart';
 import 'package:habitshare/domain/entities/user_entity.dart';
+import 'package:habitshare/domain/services/habit_streak_service.dart';
 import 'package:habitshare/presentation/screens/habit_details_screen.dart';
 
 class HabitCard extends StatelessWidget {
@@ -10,11 +11,13 @@ class HabitCard extends StatelessWidget {
     required this.habit,
     required this.user,
     this.onTap,
+    this.onComplete,
   });
 
   final HabitEntity habit;
   final UserEntity user;
   final VoidCallback? onTap;
+  final VoidCallback? onComplete;
 
   @override
   Widget build(BuildContext context) {
@@ -24,6 +27,9 @@ class HabitCard extends StatelessWidget {
     final durationLabel = habit.durationInDays != null
         ? '${habit.durationInDays} days'
         : 'Ongoing';
+    final now = DateTime.now();
+    final canComplete = HabitStreakService.canCompleteHabit(habit, now);
+    final completionStatus = HabitStreakService.getCompletionStatus(habit, now);
 
     return Card(
       child: InkWell(
@@ -90,12 +96,48 @@ class HabitCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
-                '${habit.targetPerPeriod}x ${habit.frequency.name}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+              Row(
+                children: [
+                  Text(
+                    '${habit.targetPerPeriod}x ${habit.frequency.name}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (habit.streakCount > 1)
+                    Row(
+                      children: [
+                        const Text('🔥', style: TextStyle(fontSize: 16)),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${habit.streakCount}',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
               ),
+              const SizedBox(height: 12),
+              if (onComplete != null)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: canComplete ? onComplete : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: canComplete
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.surfaceVariant,
+                      foregroundColor: canComplete
+                          ? theme.colorScheme.onPrimary
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                    child: Text(completionStatus),
+                  ),
+                ),
             ],
           ),
         ),

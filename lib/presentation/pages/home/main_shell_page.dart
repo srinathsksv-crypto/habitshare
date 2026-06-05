@@ -8,15 +8,30 @@ import 'package:habitshare/presentation/providers/auth_provider.dart';
 import 'package:habitshare/presentation/providers/social_provider.dart';
 
 class MainShellPage extends ConsumerStatefulWidget {
-  const MainShellPage({super.key});
+  const MainShellPage({
+    super.key,
+    this.initialTabIndex,
+    this.postId,
+    this.postOwnerId,
+  });
+
+  final int? initialTabIndex;
+  final String? postId;
+  final String? postOwnerId;
 
   @override
   ConsumerState<MainShellPage> createState() => _MainShellPageState();
 }
 
 class _MainShellPageState extends ConsumerState<MainShellPage> {
-  int _currentIndex = 0;
+  late int _currentIndex;
   bool _profileSynced = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialTabIndex ?? 0;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +52,11 @@ class _MainShellPageState extends ConsumerState<MainShellPage> {
 
         final tabs = [
           HabitsTab(user: user),
-          FeedTab(user: user),
+          FeedTab(
+            user: user,
+            postId: widget.postId,
+            postOwnerId: widget.postOwnerId,
+          ),
           ProfileTab(user: user),
         ];
 

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:habitshare/domain/entities/user_entity.dart';
+import 'package:habitshare/presentation/widgets/profile_avatar.dart';
 
-class UserTile extends StatelessWidget {
+class UserTile extends ConsumerWidget {
   const UserTile({
     super.key,
     required this.user,
@@ -14,13 +16,12 @@ class UserTile extends StatelessWidget {
   final String? subtitle;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final name = user.name;
     return ListTile(
-      leading: CircleAvatar(
-        backgroundImage:
-            user.photoUrl != null ? NetworkImage(user.photoUrl!) : null,
-        child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?'),
+      leading: ProfileAvatar(
+        photoUrl: user.photoUrl,
+        fallbackText: name.isNotEmpty ? name[0].toUpperCase() : '?',
       ),
       title: Text(name),
       subtitle: subtitle == null ? null : Text(subtitle!),
@@ -28,3 +29,4 @@ class UserTile extends StatelessWidget {
     );
   }
 }
+

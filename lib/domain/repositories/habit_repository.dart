@@ -11,6 +11,11 @@ abstract class IHabitRepository {
 
   Future<Either<Failure, HabitEntity>> updateHabit(HabitEntity habit);
 
+  Future<Either<Failure, HabitEntity>> completeHabit({
+    required String userId,
+    required String habitId,
+  });
+
   Future<Either<Failure, void>> deleteHabit({
     required String userId,
     required String habitId,

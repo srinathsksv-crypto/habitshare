@@ -19,8 +19,8 @@ class HabitRepositoryImpl implements IHabitRepository {
   @override
   Stream<List<HabitEntity>> watchHabits(String userId) {
     return _remote.watchHabits(userId).map(
-      (models) => models.map((m) => m.toEntity()).toList(),
-    );
+          (models) => models.map((m) => m.toEntity()).toList(),
+        );
   }
 
   @override
@@ -35,9 +35,8 @@ class HabitRepositoryImpl implements IHabitRepository {
       try {
         final cached = await _local.getCachedHabits(userId);
         if (cached.isNotEmpty) {
-          final entities = cached
-              .map((row) => HabitModel.fromJson(row).toEntity())
-              .toList();
+          final entities =
+              cached.map((row) => HabitModel.fromJson(row).toEntity()).toList();
           return Right(entities);
         }
       } catch (_) {
@@ -83,6 +82,20 @@ class HabitRepositoryImpl implements IHabitRepository {
         operation: 'update',
         payload: jsonEncode(HabitModelX.fromEntity(habit).toJson()),
       );
+      return Left(mapExceptionToFailure(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, HabitEntity>> completeHabit({
+    required String userId,
+    required String habitId,
+  }) async {
+    try {
+      final completed =
+          await _remote.completeHabit(userId: userId, habitId: habitId);
+      return Right(completed.toEntity());
+    } catch (e) {
       return Left(mapExceptionToFailure(e));
     }
   }

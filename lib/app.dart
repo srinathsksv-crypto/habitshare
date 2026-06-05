@@ -3,7 +3,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:habitshare/config/router/app_router.dart';
 import 'package:habitshare/config/theme/app_theme.dart';
+import 'package:habitshare/presentation/controllers/fcm_controller.dart';
 import 'package:habitshare/presentation/providers/auth_provider.dart';
+
+final _fcmInitProvider = Provider<void>((ref) {
+  ref.listen(
+    authStateProvider,
+    (previous, next) {
+      next.whenData((user) {
+        if (user != null) {
+          final fcmController = ref.read(fcmControllerProvider);
+          fcmController.initializeFCM(user.id);
+          fcmController.subscribeToUserNotifications(user.id);
+        }
+      });
+    },
+    fireImmediately: true,
+  );
+});
 
 class HabitShareApp extends ConsumerWidget {
   const HabitShareApp({super.key});
@@ -16,6 +33,10 @@ class HabitShareApp extends ConsumerWidget {
       data: (user) => user != null,
       orElse: () => false,
     );
+
+    // Initialize FCM when user authenticates (supports fireImmediately)
+    ref.watch(_fcmInitProvider);
+
     final router = createAppRouter(
       isAuthenticated: isAuthenticated,
       isLoading: isLoading,

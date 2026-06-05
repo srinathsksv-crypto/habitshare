@@ -126,13 +126,17 @@ class _CreatePostSheetState extends ConsumerState<CreatePostSheet> {
                 }
                 _selectedHabitId ??= active.first.id;
                 return DropdownButtonFormField<String>(
-                  initialValue: _selectedHabitId,
+                  value: _selectedHabitId,
                   decoration: const InputDecoration(labelText: 'Habit'),
+                  isExpanded: true,
                   items: active
                       .map(
                         (h) => DropdownMenuItem(
                           value: h.id,
-                          child: Text(h.title),
+                          child: Text(
+                            h.title,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       )
                       .toList(),
@@ -173,7 +177,8 @@ class _CreatePostSheetState extends ConsumerState<CreatePostSheet> {
             OutlinedButton.icon(
               onPressed: _isLoading ? null : _pickImage,
               icon: const Icon(Icons.photo_library_outlined),
-              label: Text(_imageFile == null ? 'Add photo (4:5)' : 'Change photo'),
+              label:
+                  Text(_imageFile == null ? 'Add photo (4:5)' : 'Change photo'),
             ),
             const SizedBox(height: 16),
             FilledButton(

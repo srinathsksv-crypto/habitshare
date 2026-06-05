@@ -5,6 +5,7 @@ import 'package:habitshare/domain/entities/follow_entity.dart';
 import 'package:habitshare/domain/entities/user_entity.dart';
 import 'package:habitshare/presentation/controllers/social_controller.dart';
 import 'package:habitshare/presentation/providers/social_provider.dart';
+import 'package:habitshare/presentation/widgets/profile_avatar.dart';
 
 enum ConnectionsSheetType { followers, following }
 
@@ -124,11 +125,9 @@ class _ConnectionTile extends ConsumerWidget {
     final isSelf = targetId == currentUser.id;
 
     return ListTile(
-      leading: CircleAvatar(
-        backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-        child: photoUrl == null
-            ? Text(name.isNotEmpty ? name[0].toUpperCase() : '?')
-            : null,
+      leading: ProfileAvatar(
+        photoUrl: photoUrl,
+        fallbackText: name.isNotEmpty ? name[0].toUpperCase() : '?',
       ),
       title: Text(name),
       trailing: isSelf
@@ -185,9 +184,9 @@ class _FollowActionButton extends ConsumerWidget {
 
   Future<void> _sendRequest(BuildContext context, WidgetRef ref) async {
     final error = await ref.read(socialControllerProvider).sendFollowRequest(
-      followerId: currentUserId,
-      followingId: targetUserId,
-    );
+          followerId: currentUserId,
+          followingId: targetUserId,
+        );
     if (context.mounted && error != null) {
       context.showSnackBar(error, isError: true);
     }
@@ -195,11 +194,12 @@ class _FollowActionButton extends ConsumerWidget {
 
   Future<void> _unfollow(BuildContext context, WidgetRef ref) async {
     final error = await ref.read(socialControllerProvider).unfollow(
-      followerId: currentUserId,
-      followingId: targetUserId,
-    );
+          followerId: currentUserId,
+          followingId: targetUserId,
+        );
     if (context.mounted && error != null) {
       context.showSnackBar(error, isError: true);
     }
   }
 }
+

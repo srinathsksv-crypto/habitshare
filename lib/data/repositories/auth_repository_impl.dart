@@ -71,7 +71,13 @@ class AuthRepositoryImpl implements IAuthRepository {
         password: password,
         displayName: displayName,
       );
-      return Right(await _mergeWithFirestoreProfile(user) ?? user.toEntity());
+      final merged =
+          await _mergeWithFirestoreProfile(user) ?? user.toEntity();
+      final withName = (merged.displayName == null ||
+              merged.displayName!.trim().isEmpty)
+          ? merged.copyWith(displayName: displayName.trim())
+          : merged;
+      return Right(withName);
     } catch (e) {
       return Left(mapExceptionToFailure(e));
     }

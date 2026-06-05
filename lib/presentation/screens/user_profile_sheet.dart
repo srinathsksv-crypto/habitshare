@@ -6,6 +6,7 @@ import 'package:habitshare/domain/entities/user_entity.dart';
 import 'package:habitshare/presentation/controllers/social_controller.dart';
 import 'package:habitshare/presentation/providers/social_provider.dart';
 import 'package:habitshare/presentation/providers/user_profile_provider.dart';
+import 'package:habitshare/presentation/widgets/profile_avatar.dart';
 
 class UserProfileSheet {
   const UserProfileSheet._();
@@ -53,6 +54,7 @@ class _UserProfileSheet extends ConsumerWidget {
         }
 
         final isSelf = resolved.id == currentUser.id;
+        final photoUrl = resolved.photoUrl;
         return Padding(
           padding: EdgeInsets.only(
             left: 20,
@@ -65,19 +67,12 @@ class _UserProfileSheet extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  CircleAvatar(
+                  ProfileAvatar(
+                    photoUrl: photoUrl,
+                    fallbackText: resolved.name.isNotEmpty
+                        ? resolved.name[0].toUpperCase()
+                        : '?',
                     radius: 40,
-                    backgroundImage: resolved.photoUrl != null
-                        ? NetworkImage(resolved.photoUrl!)
-                        : null,
-                    child: resolved.photoUrl == null
-                        ? Text(
-                            resolved.name.isNotEmpty
-                                ? resolved.name[0].toUpperCase()
-                                : '?',
-                            style: Theme.of(context).textTheme.headlineMedium,
-                          )
-                        : null,
                   ),
                   const SizedBox(width: 16),
                   Expanded(

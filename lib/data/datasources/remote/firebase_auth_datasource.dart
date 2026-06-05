@@ -54,7 +54,17 @@ class FirebaseAuthDataSource {
         throw const AuthException('Registration failed');
       }
       await user.updateDisplayName(displayName);
-      return UserModel.fromFirebaseUser(user);
+      await user.reload();
+      final refreshed = _auth.currentUser;
+      if (refreshed == null) {
+        throw const AuthException('Registration failed');
+      }
+      return UserModel(
+        id: refreshed.uid,
+        email: refreshed.email ?? email,
+        displayName: refreshed.displayName ?? displayName,
+        photoUrl: refreshed.photoURL,
+      );
     } on FirebaseAuthException catch (e) {
       throw AuthException(e.message ?? 'Registration failed', code: e.code);
     }
@@ -63,6 +73,7 @@ class FirebaseAuthDataSource {
   Future<UserModel> signInWithGoogle() async {
     try {
       final gSign = _googleSignIn ?? GoogleSignIn.instance;
+      await gSign.initialize();
       final googleUser = await gSign.authenticate();
       final googleAuth = googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
@@ -77,7 +88,7 @@ class FirebaseAuthDataSource {
     } on FirebaseAuthException catch (e) {
       throw AuthException(e.message ?? 'Google sign in failed', code: e.code);
     } catch (e) {
-      throw AuthException('Google Sign-In initialization failed: $e');
+      throw AuthException('Google Sign-In failed: $e');
     }
   }
 

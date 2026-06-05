@@ -49,8 +49,7 @@ class HabitPostEntity extends Equatable {
       imageUrl: imageUrl,
       likeCount: likeCount ?? this.likeCount,
       commentCount: commentCount ?? this.commentCount,
-      isLikedByCurrentUser:
-          isLikedByCurrentUser ?? this.isLikedByCurrentUser,
+      isLikedByCurrentUser: isLikedByCurrentUser ?? this.isLikedByCurrentUser,
     );
   }
 

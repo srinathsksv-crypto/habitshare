@@ -21,7 +21,10 @@ abstract class ISocialRepository {
   Future<Either<Failure, String>> uploadProfileImage({
     required String userId,
     required File file,
+    String? oldPhotoUrl,
   });
+
+  Future<Either<Failure, String>> getProfileImageUrl(String path);
 
   Future<Either<Failure, List<UserEntity>>> searchUsers({
     required String query,
@@ -99,17 +102,32 @@ abstract class ISocialRepository {
 
   Future<Either<Failure, List<FollowEntity>>> getFollowing(String userId);
 
+  Stream<List<FollowEntity>> watchFollowing(String userId);
+
   Future<Either<Failure, List<FollowEntity>>> getFollowers(String userId);
+
+  Stream<List<FollowEntity>> watchFollowers(String userId);
 
   Future<Either<Failure, List<FollowEntity>>> getPendingFollowRequests(
     String userId,
   );
 
+  Stream<List<FollowEntity>> watchPendingFollowRequests(String userId);
+
   Future<Either<Failure, int>> getFollowingCount(String userId);
+
+  Stream<int> watchFollowingCount(String userId);
 
   Future<Either<Failure, int>> getFollowersCount(String userId);
 
+  Stream<int> watchFollowersCount(String userId);
+
   Future<Either<Failure, FollowEntity?>> getFollowRelationship({
+    required String followerId,
+    required String followingId,
+  });
+
+  Stream<FollowEntity?> watchFollowRelationship({
     required String followerId,
     required String followingId,
   });

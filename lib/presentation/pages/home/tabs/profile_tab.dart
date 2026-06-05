@@ -12,6 +12,7 @@ import 'package:habitshare/presentation/providers/user_profile_provider.dart';
 import 'package:habitshare/presentation/providers/social_provider.dart';
 import 'package:habitshare/presentation/widgets/app_notification_button.dart';
 import 'package:habitshare/presentation/widgets/user_connections_sheet.dart';
+import 'package:habitshare/presentation/widgets/profile_avatar.dart';
 import 'package:habitshare/presentation/widgets/user_tile.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -203,9 +204,13 @@ class _ProfileHeaderState extends ConsumerState<_ProfileHeader> {
       return;
     }
     setState(() => _uploadingPhoto = true);
+    final currentProfile = ref.read(userProfileProvider(widget.user.id)).value;
+    final oldPhotoUrl = currentProfile?.photoUrl ?? widget.user.photoUrl;
+    
     final error = await ref.read(socialControllerProvider).uploadProfilePhoto(
           userId: widget.user.id,
           file: File(picked.path),
+          oldPhotoUrl: oldPhotoUrl,
         );
     if (mounted) {
       setState(() => _uploadingPhoto = false);
@@ -252,7 +257,7 @@ class _ProfileHeaderState extends ConsumerState<_ProfileHeader> {
       data: (stored) => stored ?? widget.user,
       orElse: () => widget.user,
     );
-    final photoUrl = displayUser.photoUrl ?? widget.user.photoUrl;
+    final photoUrl = displayUser.photoUrl;
     final bio = displayUser.bio ?? '';
 
     if (!_editingBio && _bioController.text != bio) {
@@ -266,18 +271,12 @@ class _ProfileHeaderState extends ConsumerState<_ProfileHeader> {
           children: [
             Stack(
               children: [
-                CircleAvatar(
+                ProfileAvatar(
+                  photoUrl: photoUrl,
+                  fallbackText: widget.user.name.isNotEmpty
+                      ? widget.user.name[0].toUpperCase()
+                      : '?',
                   radius: 36,
-                  backgroundImage:
-                      photoUrl != null ? NetworkImage(photoUrl) : null,
-                  child: photoUrl == null
-                      ? Text(
-                          widget.user.name.isNotEmpty
-                              ? widget.user.name[0].toUpperCase()
-                              : '?',
-                          style: Theme.of(context).textTheme.headlineMedium,
-                        )
-                      : null,
                 ),
                 Positioned(
                   right: 0,
@@ -435,11 +434,9 @@ class _FollowRequestTile extends ConsumerWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundImage: request.followerPhotoUrl != null
-              ? NetworkImage(request.followerPhotoUrl!)
-              : null,
-          child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?'),
+        leading: ProfileAvatar(
+          photoUrl: request.followerPhotoUrl,
+          fallbackText: name.isNotEmpty ? name[0].toUpperCase() : '?',
         ),
         title: Text(name),
         subtitle: const Text('wants to follow you'),
@@ -555,3 +552,4 @@ class _SearchUserTile extends ConsumerWidget {
     );
   }
 }
+

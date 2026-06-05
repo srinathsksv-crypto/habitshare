@@ -53,6 +53,9 @@ class FirestorePaths {
   Query<Map<String, dynamic>> postsCollectionGroup() =>
       _db.collectionGroup(AppConstants.postsSubcollection);
 
+  Query<Map<String, dynamic>> notificationsCollectionGroup() =>
+      _db.collectionGroup(AppConstants.notificationsSubcollection);
+
   static String? readImageUrl(Map<String, dynamic>? data) {
     if (data == null) return null;
     return data['image_url'] as String? ?? data['photo_url'] as String?;

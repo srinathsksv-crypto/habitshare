@@ -47,6 +47,7 @@ app.*.map.json
 # Environment & secrets
 .env
 *.env.local
+firebase-service-account.json
 
 # Firebase
 **/google-services.json

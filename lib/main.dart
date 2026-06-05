@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:habitshare/app.dart';
 import 'package:habitshare/core/di/service_locator.dart';
 import 'package:habitshare/core/logger/app_logger.dart';
+import 'package:habitshare/domain/services/fcm_message_handler.dart';
 import 'package:habitshare/firebase_options.dart';
 
 Future<void> main() async {
@@ -18,7 +19,11 @@ Future<void> main() async {
       );
       await dotenv.load(fileName: '.env');
       await configureDependencies();
-      
+
+      // Initialize FCM message handler
+      final fcmHandler = sl<FCMMessageHandler>();
+      await fcmHandler.initialize();
+
       FlutterError.onError = (details) {
         AppLogger.error(
           details.exceptionAsString(),

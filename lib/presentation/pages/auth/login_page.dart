@@ -29,7 +29,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _handleAuthSuccess(UserEntity user) async {
-    await ref.read(socialRepositoryProvider).upsertUserProfile(user);
+    var profile = user;
+    if (_isRegistering) {
+      final name = _nameController.text.trim();
+      if (name.isNotEmpty &&
+          (profile.displayName == null || profile.displayName!.trim().isEmpty)) {
+        profile = profile.copyWith(displayName: name);
+      }
+    }
+    await ref.read(socialRepositoryProvider).upsertUserProfile(profile);
   }
 
   Future<void> _handleSubmit() async {

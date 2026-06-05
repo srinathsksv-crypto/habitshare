@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:habitshare/core/extensions/context_extensions.dart';
 import 'package:habitshare/core/utils/date_utils.dart';
+import 'package:habitshare/domain/entities/habit_entity.dart';
 import 'package:habitshare/domain/entities/user_entity.dart';
 import 'package:habitshare/presentation/controllers/habit_controller.dart';
 
@@ -22,6 +23,7 @@ class _CreateHabitDialogState extends ConsumerState<CreateHabitDialog> {
   bool _isLoading = false;
   DateTime _startDate = DateTime.now();
   DateTime? _endDate;
+  HabitFrequency _frequency = HabitFrequency.daily;
 
   @override
   void dispose() {
@@ -70,6 +72,7 @@ class _CreateHabitDialogState extends ConsumerState<CreateHabitDialog> {
           user: widget.user,
           title: title,
           description: _descriptionController.text,
+          frequency: _frequency,
           shareAsPost: _shareAsPost,
           postMessage: _messageController.text,
           startDate: _startDate,
@@ -139,12 +142,38 @@ class _CreateHabitDialogState extends ConsumerState<CreateHabitDialog> {
                         enabled: !_isLoading,
                       ),
                       const SizedBox(height: 12),
+                      DropdownButtonFormField<HabitFrequency>(
+                        value: _frequency,
+                        decoration: const InputDecoration(
+                          labelText: 'Frequency *',
+                          hintText: 'How often do you want to do this?',
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: HabitFrequency.daily,
+                            child: Text('Daily'),
+                          ),
+                          DropdownMenuItem(
+                            value: HabitFrequency.weekly,
+                            child: Text('Weekly'),
+                          ),
+                        ],
+                        onChanged: _isLoading
+                            ? null
+                            : (value) {
+                                if (value != null) {
+                                  setState(() => _frequency = value);
+                                }
+                              },
+                      ),
+                      const SizedBox(height: 12),
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         title: const Text('Start date'),
                         subtitle: Text(AppDateUtils.formatDay(_startDate)),
                         trailing: const Icon(Icons.calendar_today),
-                        onTap: _isLoading ? null : () => _pickDate(isStart: true),
+                        onTap:
+                            _isLoading ? null : () => _pickDate(isStart: true),
                       ),
                       ListTile(
                         contentPadding: EdgeInsets.zero,
@@ -167,7 +196,8 @@ class _CreateHabitDialogState extends ConsumerState<CreateHabitDialog> {
                             const Icon(Icons.event),
                           ],
                         ),
-                        onTap: _isLoading ? null : () => _pickDate(isStart: false),
+                        onTap:
+                            _isLoading ? null : () => _pickDate(isStart: false),
                       ),
                       const SizedBox(height: 8),
                       SwitchListTile(

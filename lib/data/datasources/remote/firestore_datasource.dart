@@ -13,23 +13,29 @@ import 'package:habitshare/data/models/notification_model.dart';
 import 'package:habitshare/data/datasources/remote/firestore_paths.dart';
 import 'package:habitshare/data/models/shared_habit_model.dart';
 import 'package:habitshare/domain/entities/follow_entity.dart';
+import 'package:habitshare/domain/entities/habit_entity.dart';
 import 'package:habitshare/domain/entities/habit_post_entity.dart';
 import 'package:habitshare/domain/entities/notification_entity.dart';
 import 'package:habitshare/domain/entities/post_comment_entity.dart';
 import 'package:habitshare/domain/entities/user_entity.dart';
+import 'package:habitshare/domain/services/habit_streak_service.dart';
+import 'package:habitshare/domain/services/push_notification_service.dart';
 
 class FirestoreDataSource {
   FirestoreDataSource({
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
     FirebaseStorage? storage,
+    PushNotificationService? pushService,
   })  : _firestore = firestore ?? FirebaseFirestore.instance,
         _auth = auth ?? FirebaseAuth.instance,
-        _storage = storage ?? FirebaseStorage.instance;
+        _storage = storage ?? FirebaseStorage.instance,
+        _pushService = pushService;
 
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
   final FirebaseStorage _storage;
+  final PushNotificationService? _pushService;
   late final FirestorePaths _paths = FirestorePaths(_firestore);
 
   String _requireAuthUid() {
@@ -39,8 +45,6 @@ class FirestoreDataSource {
     }
     return uid;
   }
-
-
 
   HabitModel _habitFromDoc(
     QueryDocumentSnapshot<Map<String, dynamic>> doc, {
@@ -60,6 +64,11 @@ class FirestoreDataSource {
       status: data['status'] as String? ?? 'active',
       startDate: FirestoreParseUtils.parseDateTimeOrNull(data['start_date']),
       endDate: FirestoreParseUtils.parseDateTimeOrNull(data['end_date']),
+      streakCount: (data['streak_count'] as num?)?.toInt() ?? 0,
+      lastCompletedAt:
+          FirestoreParseUtils.parseDateTimeOrNull(data['last_completed_at']),
+      lastCompletedWindowIndex:
+          (data['last_completed_window_index'] as num?)?.toInt() ?? 0,
       createdAt: FirestoreParseUtils.parseDateTime(data['created_at']),
       updatedAt: FirestoreParseUtils.parseDateTimeOrNull(data['updated_at']),
     );
@@ -85,7 +94,9 @@ class FirestoreDataSource {
     try {
       final snapshot = await _paths.habits(userId).get();
       return _sortHabits(
-        snapshot.docs.map((doc) => _habitFromDoc(doc, ownerUserId: userId)).toList(),
+        snapshot.docs
+            .map((doc) => _habitFromDoc(doc, ownerUserId: userId))
+            .toList(),
       );
     } on FirebaseException catch (e) {
       throw ServerException(
@@ -98,7 +109,8 @@ class FirestoreDataSource {
   Future<HabitModel> createHabit(HabitModel habit) async {
     try {
       final collection = _paths.habits(habit.userId);
-      final doc = habit.id.isEmpty ? collection.doc() : collection.doc(habit.id);
+      final doc =
+          habit.id.isEmpty ? collection.doc() : collection.doc(habit.id);
       final data = habit.copyWith(id: doc.id).toJson()
         ..remove('id')
         ..['user_id'] = habit.userId;
@@ -127,27 +139,136 @@ class FirestoreDataSource {
     }
   }
 
+  Future<HabitModel> completeHabit({
+    required String userId,
+    required String habitId,
+  }) async {
+    try {
+      final habitRef = _paths.habits(userId).doc(habitId);
+      final habitDoc = await habitRef.get();
+      final habitData = habitDoc.data();
+
+      if (habitData == null) {
+        throw ServerException('Habit not found');
+      }
+
+      // Manually create HabitModel from document data
+      final habitModel = HabitModel(
+        id: habitDoc.id,
+        userId: habitData['user_id'] as String? ?? userId,
+        title: habitData['title'] as String? ?? '',
+        description: habitData['description'] as String?,
+        categoryId: habitData['category_id'] as String?,
+        colorHex: habitData['color_hex'] as String? ?? '#6750A4',
+        frequency: habitData['frequency'] as String? ?? 'daily',
+        targetPerPeriod: (habitData['target_per_period'] as num?)?.toInt() ?? 1,
+        isArchived: habitData['is_archived'] as bool? ?? false,
+        status: habitData['status'] as String? ?? 'active',
+        startDate:
+            FirestoreParseUtils.parseDateTimeOrNull(habitData['start_date']),
+        endDate: FirestoreParseUtils.parseDateTimeOrNull(habitData['end_date']),
+        streakCount: (habitData['streak_count'] as num?)?.toInt() ?? 0,
+        lastCompletedAt: FirestoreParseUtils.parseDateTimeOrNull(
+            habitData['last_completed_at']),
+        lastCompletedWindowIndex:
+            (habitData['last_completed_window_index'] as num?)?.toInt() ?? 0,
+        createdAt: FirestoreParseUtils.parseDateTime(habitData['created_at']),
+        updatedAt:
+            FirestoreParseUtils.parseDateTimeOrNull(habitData['updated_at']),
+      );
+
+      final habitEntity = habitModel.toEntity();
+      final now = DateTime.now();
+
+      // Check if habit can be completed
+      if (!HabitStreakService.canCompleteHabit(habitEntity, now)) {
+        throw ServerException('Habit already completed for this period');
+      }
+
+      // Calculate new streak
+      final newStreak = HabitStreakService.calculateNewStreak(habitEntity, now);
+      final today = DateTime(now.year, now.month, now.day);
+
+      // Update habit with completion data
+      final updateData = <String, dynamic>{
+        'streak_count': newStreak,
+        'last_completed_at': today.toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      if (habitEntity.frequency == HabitFrequency.weekly) {
+        final currentWindowIndex = HabitStreakService.getCurrentWindowIndex(
+          habitEntity.createdAt,
+          now,
+        );
+        updateData['last_completed_window_index'] = currentWindowIndex;
+      }
+
+      await habitRef.update(updateData);
+
+      // Return updated habit
+      final updatedDoc = await habitRef.get();
+      final updatedData = updatedDoc.data()!;
+      return HabitModel(
+        id: updatedDoc.id,
+        userId: updatedData['user_id'] as String? ?? userId,
+        title: updatedData['title'] as String? ?? '',
+        description: updatedData['description'] as String?,
+        categoryId: updatedData['category_id'] as String?,
+        colorHex: updatedData['color_hex'] as String? ?? '#6750A4',
+        frequency: updatedData['frequency'] as String? ?? 'daily',
+        targetPerPeriod:
+            (updatedData['target_per_period'] as num?)?.toInt() ?? 1,
+        isArchived: updatedData['is_archived'] as bool? ?? false,
+        status: updatedData['status'] as String? ?? 'active',
+        startDate:
+            FirestoreParseUtils.parseDateTimeOrNull(updatedData['start_date']),
+        endDate:
+            FirestoreParseUtils.parseDateTimeOrNull(updatedData['end_date']),
+        streakCount: (updatedData['streak_count'] as num?)?.toInt() ?? 0,
+        lastCompletedAt: FirestoreParseUtils.parseDateTimeOrNull(
+            updatedData['last_completed_at']),
+        lastCompletedWindowIndex:
+            (updatedData['last_completed_window_index'] as num?)?.toInt() ?? 0,
+        createdAt: FirestoreParseUtils.parseDateTime(updatedData['created_at']),
+        updatedAt:
+            FirestoreParseUtils.parseDateTimeOrNull(updatedData['updated_at']),
+      );
+    } on FirebaseException catch (e) {
+      throw ServerException(
+        e.message ?? 'Failed to complete habit',
+        code: e.code,
+      );
+    }
+  }
+
   Future<void> deleteHabit({
     required String userId,
     required String habitId,
   }) async {
     try {
       final batch = _firestore.batch();
-      
+
       // Delete the habit
       final habitRef = _paths.habits(userId).doc(habitId);
       batch.delete(habitRef);
-      
+
       // Delete related posts
-      final postsSnapshot = await _paths.posts(userId).where('habit_id', isEqualTo: habitId).get();
+      final postsSnapshot = await _paths
+          .posts(userId)
+          .where('habit_id', isEqualTo: habitId)
+          .get();
       for (final doc in postsSnapshot.docs) {
         batch.delete(doc.reference);
         // Note: cloud functions or a recursive delete might be better if posts have subcollections (likes/comments),
         // but batch deleting the document itself will hide it from the feed.
       }
-      
+
       // Delete related habit logs
-      final logsSnapshot = await _paths.habitLogs(userId).where('habit_id', isEqualTo: habitId).get();
+      final logsSnapshot = await _paths
+          .habitLogs(userId)
+          .where('habit_id', isEqualTo: habitId)
+          .get();
       for (final doc in logsSnapshot.docs) {
         batch.delete(doc.reference);
       }
@@ -162,7 +283,8 @@ class FirestoreDataSource {
   }
 
   Stream<List<HabitLogModel>> watchHabitLogs(String habitId, String userId) {
-    return _paths.habitLogs(userId)
+    return _paths
+        .habitLogs(userId)
         .where('habit_id', isEqualTo: habitId)
         .orderBy('logged_at', descending: true)
         .snapshots()
@@ -175,9 +297,11 @@ class FirestoreDataSource {
         );
   }
 
-  Future<List<HabitLogModel>> getHabitLogs(String habitId, String userId) async {
+  Future<List<HabitLogModel>> getHabitLogs(
+      String habitId, String userId) async {
     try {
-      final snapshot = await _paths.habitLogs(userId)
+      final snapshot = await _paths
+          .habitLogs(userId)
           .where('habit_id', isEqualTo: habitId)
           .orderBy('logged_at', descending: true)
           .get();
@@ -215,7 +339,8 @@ class FirestoreDataSource {
 
   Future<List<SharedHabitModel>> getSharedHabits(String userId) async {
     try {
-      final snapshot = await _paths.sharedHabits(userId)
+      final snapshot = await _paths
+          .sharedHabits(userId)
           .orderBy('shared_at', descending: true)
           .get();
       return snapshot.docs
@@ -232,7 +357,8 @@ class FirestoreDataSource {
   }
 
   Stream<List<SharedHabitModel>> watchSharedHabits(String userId) {
-    return _paths.sharedHabits(userId)
+    return _paths
+        .sharedHabits(userId)
         .orderBy('shared_at', descending: true)
         .snapshots()
         .map(
@@ -261,6 +387,7 @@ class FirestoreDataSource {
       // Never overwrite a custom uploaded image with null/empty auth photo.
       if (user.photoUrl != null && user.photoUrl!.isNotEmpty) {
         data['image_url'] = user.photoUrl;
+        data['photo_url'] = user.photoUrl;
       }
       await _paths.user(user.id).set(data, SetOptions(merge: true));
       await _paths.privateProfile(user.id).set(
@@ -333,6 +460,7 @@ class FirestoreDataSource {
       await _paths.user(userId).set(
         {
           'image_url': photoUrl,
+          'photo_url': photoUrl,
           'updated_at': DateTime.now().toIso8601String(),
         },
         SetOptions(merge: true),
@@ -340,6 +468,41 @@ class FirestoreDataSource {
     } on FirebaseException catch (e) {
       throw ServerException(
         e.message ?? 'Failed to update photo',
+        code: e.code,
+      );
+    }
+  }
+
+  Future<void> updateProfilePhotoInPosts({
+    required String userId,
+    required String newPhotoUrl,
+  }) async {
+    try {
+      final postsSnapshot = await _paths.posts(userId).get();
+      final batch = _firestore.batch();
+      for (final doc in postsSnapshot.docs) {
+        batch.update(doc.reference, {
+          'author_photo_url': newPhotoUrl,
+          'author_image_url': newPhotoUrl,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      }
+
+      // Also update notifications that reference this user's photo
+      final notificationsSnapshot = await _paths
+          .notificationsCollectionGroup()
+          .where('sender_id', isEqualTo: userId)
+          .get();
+      for (final doc in notificationsSnapshot.docs) {
+        batch.update(doc.reference, {
+          'sender_photo_url': newPhotoUrl,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      }
+      await batch.commit();
+    } on FirebaseException catch (e) {
+      throw ServerException(
+        e.message ?? 'Failed to update posts with new photo',
         code: e.code,
       );
     }
@@ -392,7 +555,8 @@ class FirestoreDataSource {
     try {
       final authUid = _requireAuthUid();
       if (authUid != userId) {
-        throw const AuthException('Authenticated user mismatch while creating post');
+        throw const AuthException(
+            'Authenticated user mismatch while creating post');
       }
       final doc = _paths.posts(userId).doc();
       final createdAt = DateTime.now();
@@ -486,8 +650,9 @@ class FirestoreDataSource {
             .where((doc) => visibleUserIds.contains(doc.data()['user_id']))
             .map((doc) => _postFromDoc(doc, viewerId: viewerId));
         final currentPosts = await Future.wait(postFutures);
-        
-        AppLogger.debug('Feed: fetched ${currentPosts.length} posts for viewer $viewerId');
+
+        AppLogger.debug(
+            'Feed: fetched ${currentPosts.length} posts for viewer $viewerId');
         return currentPosts;
       } catch (e, stack) {
         AppLogger.error('Feed error: failed to fetch posts', e, stack);
@@ -560,8 +725,8 @@ class FirestoreDataSource {
 
     final authorId = data['user_id'] as String? ?? '';
     final postAuthorName = data['author_name'] as String?;
-    final postAuthorPhotoUrl = data['author_photo_url'] as String?
-        ?? data['author_image_url'] as String?;
+    final postAuthorPhotoUrl = data['author_photo_url'] as String? ??
+        data['author_image_url'] as String?;
     var authorName = postAuthorName;
     var authorPhotoUrl = postAuthorPhotoUrl;
 
@@ -599,7 +764,8 @@ class FirestoreDataSource {
     try {
       final authUid = _requireAuthUid();
       if (authUid != userId) {
-        throw const AuthException('Authenticated user mismatch while toggling like');
+        throw const AuthException(
+            'Authenticated user mismatch while toggling like');
       }
       final postRef = _paths.post(userId: postOwnerId, postId: postId);
       final likeRef =
@@ -682,7 +848,8 @@ class FirestoreDataSource {
     try {
       final authUid = _requireAuthUid();
       if (authUid != userId) {
-        throw const AuthException('Authenticated user mismatch while adding comment');
+        throw const AuthException(
+            'Authenticated user mismatch while adding comment');
       }
       final postRef = _paths.post(userId: postOwnerId, postId: postId);
       final commentRef =
@@ -736,7 +903,8 @@ class FirestoreDataSource {
     try {
       final authUid = _requireAuthUid();
       if (authUid != followerId) {
-        throw const AuthException('Authenticated user mismatch while sending follow request');
+        throw const AuthException(
+            'Authenticated user mismatch while sending follow request');
       }
       final existing =
           await _paths.following(followerId).doc(followingId).get();
@@ -761,7 +929,8 @@ class FirestoreDataSource {
         senderPhotoUrl: FirestorePaths.readImageUrl(followerData),
       );
     } on FirebaseException catch (e, stack) {
-      AppLogger.error('sendFollowRequest failed: $followerId -> $followingId', e, stack);
+      AppLogger.error(
+          'sendFollowRequest failed: $followerId -> $followingId', e, stack);
       throw ServerException(
         e.message ?? 'Failed to send follow request',
         code: e.code,
@@ -778,7 +947,8 @@ class FirestoreDataSource {
     try {
       final authUid = _requireAuthUid();
       if (authUid != followingId) {
-        throw const AuthException('Authenticated user mismatch while accepting request');
+        throw const AuthException(
+            'Authenticated user mismatch while accepting request');
       }
       final update = {
         'status': AppConstants.followStatusAccepted,
@@ -809,7 +979,8 @@ class FirestoreDataSource {
     try {
       final authUid = _requireAuthUid();
       if (authUid != followingId && authUid != followerId) {
-        throw const AuthException('Authenticated user mismatch while rejecting request');
+        throw const AuthException(
+            'Authenticated user mismatch while rejecting request');
       }
       await _paths.followers(followingId).doc(followerId).delete();
       await _paths.following(followerId).doc(followingId).delete();
@@ -857,6 +1028,23 @@ class FirestoreDataSource {
     }
   }
 
+  Stream<List<FollowEntity>> watchFollowing(String userId) {
+    return _paths
+        .following(userId)
+        .snapshots()
+        .asyncMap((snapshot) {
+          final docs = snapshot.docs.where((doc) {
+            final status = doc.data()['status'] as String?;
+            return status == null || status == AppConstants.followStatusAccepted;
+          }).toList();
+          return _mapFollowDocs(
+            docs,
+            ownerUserId: userId,
+            isFollowingList: true,
+          );
+        });
+  }
+
   Future<List<FollowEntity>> getFollowers(String userId) async {
     try {
       final snapshot = await _paths.followers(userId).get();
@@ -875,6 +1063,23 @@ class FirestoreDataSource {
         code: e.code,
       );
     }
+  }
+
+  Stream<List<FollowEntity>> watchFollowers(String userId) {
+    return _paths
+        .followers(userId)
+        .snapshots()
+        .asyncMap((snapshot) {
+          final docs = snapshot.docs.where((doc) {
+            final status = doc.data()['status'] as String?;
+            return status == null || status == AppConstants.followStatusAccepted;
+          }).toList();
+          return _mapFollowDocs(
+            docs,
+            ownerUserId: userId,
+            isFollowingList: false,
+          );
+        });
   }
 
   Future<List<FollowEntity>> getPendingFollowRequests(String userId) async {
@@ -896,14 +1101,34 @@ class FirestoreDataSource {
     }
   }
 
+  Stream<List<FollowEntity>> watchPendingFollowRequests(String userId) {
+    return _paths
+        .followers(userId)
+        .where('status', isEqualTo: AppConstants.followStatusPending)
+        .snapshots()
+        .asyncMap((snapshot) => _mapFollowDocs(
+              snapshot.docs,
+              ownerUserId: userId,
+              isFollowingList: false,
+            ));
+  }
+
   Future<int> getFollowingCount(String userId) async {
     final list = await getFollowing(userId);
     return list.length;
   }
 
+  Stream<int> watchFollowingCount(String userId) {
+    return watchFollowing(userId).map((list) => list.length);
+  }
+
   Future<int> getFollowersCount(String userId) async {
     final list = await getFollowers(userId);
     return list.length;
+  }
+
+  Stream<int> watchFollowersCount(String userId) {
+    return watchFollowers(userId).map((list) => list.length);
   }
 
   Future<FollowEntity?> getFollowRelationship({
@@ -929,6 +1154,27 @@ class FirestoreDataSource {
     }
   }
 
+  Stream<FollowEntity?> watchFollowRelationship({
+    required String followerId,
+    required String followingId,
+  }) {
+    return _paths
+        .following(followerId)
+        .doc(followingId)
+        .snapshots()
+        .asyncMap((doc) async {
+      if (!doc.exists) {
+        return null;
+      }
+      final mapped = await _mapFollowDocs(
+        [doc],
+        ownerUserId: followerId,
+        isFollowingList: true,
+      );
+      return mapped.first;
+    });
+  }
+
   FollowStatus _parseFollowStatus(String? value) {
     if (value == AppConstants.followStatusPending) {
       return FollowStatus.pending;
@@ -944,8 +1190,8 @@ class FirestoreDataSource {
     final results = <FollowEntity>[];
     for (final doc in docs) {
       final data = doc.data() ?? {};
-      final followerId =
-          data['follower_id'] as String? ?? (isFollowingList ? ownerUserId : doc.id);
+      final followerId = data['follower_id'] as String? ??
+          (isFollowingList ? ownerUserId : doc.id);
       final followingId = data['following_id'] as String? ??
           (isFollowingList ? doc.id : ownerUserId);
       final targetId = isFollowingList ? followingId : followerId;
@@ -1046,7 +1292,18 @@ class FirestoreDataSource {
     String? senderPhotoUrl,
     String? postId,
   }) async {
-    if (receiverId.isEmpty) return;
+    print('=== CREATING NOTIFICATION ===');
+    print('Receiver ID: $receiverId');
+    print('Type: ${type.name}');
+    print('Sender ID: $senderId');
+    print('Sender Name: $senderName');
+    print('Post ID: $postId');
+
+    if (receiverId.isEmpty) {
+      print('ERROR: Receiver ID is empty');
+      print('=== NOTIFICATION CREATION FAILED ===');
+      return;
+    }
 
     // IMPORTANT:
     // Your Firestore rules prevent reading notifications belonging to other users.
@@ -1066,6 +1323,7 @@ class FirestoreDataSource {
         '${receiverId}_${type.name}_${senderId ?? 'anon'}_${postId ?? 'none'}_$hourBucketMillis';
 
     try {
+      print('Saving notification to Firestore...');
       // Use merge:true so re-sending the same notification doesn't wipe receiver state.
       // We intentionally omit `is_read` so if the receiver has already opened it,
       // we don't reset the read flag on duplicates.
@@ -1080,8 +1338,68 @@ class FirestoreDataSource {
         },
         SetOptions(merge: true),
       );
+      print('Notification saved to Firestore successfully');
+
+      // Send push notification if service is available
+      if (_pushService != null) {
+        print(
+            'Push notification service available, sending notification for type: ${type.name}');
+        final title = _getNotificationTitle(type, senderName);
+        final body = _getNotificationBody(type, senderName);
+        print('Notification title: $title, body: $body');
+        await _pushService.sendPushNotification(
+          userId: receiverId,
+          title: title,
+          body: body,
+          data: {
+            'type': type.name,
+            'receiver_id': receiverId,
+            'sender_id': senderId,
+            'sender_name': senderName,
+            'post_id': postId,
+          },
+        );
+      } else {
+        print('ERROR: Push notification service not available');
+      }
+      print('=== NOTIFICATION CREATION COMPLETE ===');
     } on FirebaseException catch (e) {
+      print('=== NOTIFICATION CREATION ERROR ===');
+      print('Error: ${e.message}');
+      print('Code: ${e.code}');
       AppLogger.warning('Notification create skipped: ${e.message}');
+    }
+  }
+
+  String _getNotificationTitle(NotificationType type, String? senderName) {
+    final name = senderName ?? 'Someone';
+    switch (type) {
+      case NotificationType.like:
+        return '$name liked your post';
+      case NotificationType.comment:
+        return '$name commented on your post';
+      case NotificationType.followRequest:
+        return '$name sent you a follow request';
+      case NotificationType.followAccepted:
+        return '$name accepted your follow request';
+      case NotificationType.newPost:
+        return '$name posted a new habit';
+    }
+  }
+
+  String _getNotificationBody(NotificationType type, String? senderName) {
+    final name = senderName ?? 'Someone';
+    switch (type) {
+      case NotificationType.like:
+        return 'Tap to see the post';
+      case NotificationType.comment:
+        return 'Tap to read the comment';
+      case NotificationType.followRequest:
+        return 'Tap to accept or decline';
+      case NotificationType.followAccepted:
+        return 'You can now see $name\'s habits';
+      case NotificationType.newPost:
+        return 'Tap to see what $name shared';
     }
   }
 
@@ -1112,6 +1430,105 @@ class FirestoreDataSource {
       }
     } on FirebaseException catch (e) {
       AppLogger.warning('Follower notifications skipped: ${e.message}');
+    }
+  }
+
+  Future<void> saveFCMToken({
+    required String userId,
+    required String token,
+  }) async {
+    try {
+      await _paths.user(userId).collection('fcm_tokens').doc(token).set({
+        'token': token,
+        'created_at': DateTime.now().toIso8601String(),
+        'platform': 'unknown',
+      });
+    } on FirebaseException catch (e) {
+      throw ServerException(
+        e.message ?? 'Failed to save FCM token',
+        code: e.code,
+      );
+    }
+  }
+
+  Future<void> deleteFCMToken({
+    required String userId,
+    required String token,
+  }) async {
+    try {
+      await _paths.user(userId).collection('fcm_tokens').doc(token).delete();
+    } on FirebaseException catch (e) {
+      throw ServerException(
+        e.message ?? 'Failed to delete FCM token',
+        code: e.code,
+      );
+    }
+  }
+
+  Future<Map<String, bool>> getNotificationSettings(String userId) async {
+    try {
+      final doc = await _paths
+          .user(userId)
+          .collection('settings')
+          .doc('notifications')
+          .get();
+      if (!doc.exists) {
+        // Return default settings
+        return {
+          'likes': true,
+          'comments': true,
+          'follows': true,
+          'new_posts': true,
+        };
+      }
+      final data = doc.data()!;
+      return {
+        'likes': data['likes'] as bool? ?? true,
+        'comments': data['comments'] as bool? ?? true,
+        'follows': data['follows'] as bool? ?? true,
+        'new_posts': data['new_posts'] as bool? ?? true,
+      };
+    } on FirebaseException catch (e) {
+      throw ServerException(
+        e.message ?? 'Failed to get notification settings',
+        code: e.code,
+      );
+    }
+  }
+
+  Future<void> updateNotificationSettings({
+    required String userId,
+    required Map<String, bool> settings,
+  }) async {
+    try {
+      await _paths
+          .user(userId)
+          .collection('settings')
+          .doc('notifications')
+          .set({
+        'likes': settings['likes'] ?? true,
+        'comments': settings['comments'] ?? true,
+        'follows': settings['follows'] ?? true,
+        'new_posts': settings['new_posts'] ?? true,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+    } on FirebaseException catch (e) {
+      throw ServerException(
+        e.message ?? 'Failed to update notification settings',
+        code: e.code,
+      );
+    }
+  }
+
+  Future<List<String>> getUserFCMTokens(String userId) async {
+    try {
+      final snapshot = await _paths.user(userId).collection('fcm_tokens').get();
+      return snapshot.docs.map((doc) => doc.data()['token'] as String).toList();
+    } on FirebaseException catch (e) {
+      throw ServerException(
+        e.message ?? 'Failed to get FCM tokens',
+        code: e.code,
+      );
     }
   }
 }

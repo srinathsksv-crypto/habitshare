@@ -54,10 +54,27 @@ class SocialRepositoryImpl implements ISocialRepository {
   Future<Either<Failure, String>> uploadProfileImage({
     required String userId,
     required File file,
+    String? oldPhotoUrl,
   }) async {
     try {
-      final url = await _storage.uploadProfileImage(userId: userId, file: file);
-      await _remote.updateUserPhotoUrl(userId: userId, photoUrl: url);
+      final path = await _storage.uploadProfileImage(
+        userId: userId,
+        file: file,
+        oldPhotoUrl: oldPhotoUrl,
+      );
+      await _remote.updateUserPhotoUrl(userId: userId, photoUrl: path);
+      await _remote.updateProfilePhotoInPosts(
+          userId: userId, newPhotoUrl: path);
+      return Right(path);
+    } catch (e) {
+      return Left(mapExceptionToFailure(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, String>> getProfileImageUrl(String path) async {
+    try {
+      final url = await _storage.getProfileImageUrl(path);
       return Right(url);
     } catch (e) {
       return Left(mapExceptionToFailure(e));
@@ -272,6 +289,10 @@ class SocialRepositoryImpl implements ISocialRepository {
   }
 
   @override
+  Stream<List<FollowEntity>> watchFollowing(String userId) =>
+      _remote.watchFollowing(userId);
+
+  @override
   Future<Either<Failure, List<FollowEntity>>> getFollowers(
     String userId,
   ) async {
@@ -281,6 +302,10 @@ class SocialRepositoryImpl implements ISocialRepository {
       return Left(mapExceptionToFailure(e));
     }
   }
+
+  @override
+  Stream<List<FollowEntity>> watchFollowers(String userId) =>
+      _remote.watchFollowers(userId);
 
   @override
   Future<Either<Failure, List<FollowEntity>>> getPendingFollowRequests(
@@ -294,6 +319,10 @@ class SocialRepositoryImpl implements ISocialRepository {
   }
 
   @override
+  Stream<List<FollowEntity>> watchPendingFollowRequests(String userId) =>
+      _remote.watchPendingFollowRequests(userId);
+
+  @override
   Future<Either<Failure, int>> getFollowingCount(String userId) async {
     try {
       return Right(await _remote.getFollowingCount(userId));
@@ -303,6 +332,10 @@ class SocialRepositoryImpl implements ISocialRepository {
   }
 
   @override
+  Stream<int> watchFollowingCount(String userId) =>
+      _remote.watchFollowingCount(userId);
+
+  @override
   Future<Either<Failure, int>> getFollowersCount(String userId) async {
     try {
       return Right(await _remote.getFollowersCount(userId));
@@ -310,6 +343,10 @@ class SocialRepositoryImpl implements ISocialRepository {
       return Left(mapExceptionToFailure(e));
     }
   }
+
+  @override
+  Stream<int> watchFollowersCount(String userId) =>
+      _remote.watchFollowersCount(userId);
 
   @override
   Future<Either<Failure, FollowEntity?>> getFollowRelationship({
@@ -327,6 +364,16 @@ class SocialRepositoryImpl implements ISocialRepository {
       return Left(mapExceptionToFailure(e));
     }
   }
+
+  @override
+  Stream<FollowEntity?> watchFollowRelationship({
+    required String followerId,
+    required String followingId,
+  }) =>
+      _remote.watchFollowRelationship(
+        followerId: followerId,
+        followingId: followingId,
+      );
 
   @override
   Stream<List<NotificationEntity>> watchNotifications(String userId) =>

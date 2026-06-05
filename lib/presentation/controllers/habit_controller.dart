@@ -19,6 +19,7 @@ class HabitController {
     required UserEntity user,
     required String title,
     String? description,
+    HabitFrequency frequency = HabitFrequency.daily,
     bool shareAsPost = true,
     String? postMessage,
     DateTime? startDate,
@@ -35,6 +36,7 @@ class HabitController {
       userId: user.id,
       title: title.trim(),
       description: description?.trim(),
+      frequency: frequency,
       createdAt: now,
       startDate: effectiveStart,
       endDate: endDate,
@@ -76,7 +78,8 @@ class HabitController {
       isArchived: true,
       updatedAt: DateTime.now(),
     );
-    final result = await _ref.read(habitRepositoryProvider).updateHabit(updated);
+    final result =
+        await _ref.read(habitRepositoryProvider).updateHabit(updated);
     return result.fold(
       (failure) => failure.message,
       (_) {
@@ -95,6 +98,23 @@ class HabitController {
       (failure) => failure.message,
       (_) {
         _invalidateHabits(habit.userId);
+        return null;
+      },
+    );
+  }
+
+  Future<String?> completeHabit({
+    required String userId,
+    required String habitId,
+  }) async {
+    final result = await _ref.read(habitRepositoryProvider).completeHabit(
+          userId: userId,
+          habitId: habitId,
+        );
+    return result.fold(
+      (failure) => failure.message,
+      (_) {
+        _invalidateHabits(userId);
         return null;
       },
     );

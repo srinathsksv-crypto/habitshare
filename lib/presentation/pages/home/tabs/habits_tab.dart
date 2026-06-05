@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:habitshare/core/extensions/context_extensions.dart';
 import 'package:habitshare/domain/entities/user_entity.dart';
+import 'package:habitshare/presentation/controllers/habit_controller.dart';
 import 'package:habitshare/presentation/providers/habit_provider.dart';
 import 'package:habitshare/presentation/widgets/app_notification_button.dart';
 import 'package:habitshare/presentation/widgets/create_habit_dialog.dart';
@@ -19,6 +20,21 @@ class HabitsTab extends ConsumerWidget {
     );
     if (created == true && context.mounted) {
       context.showSnackBar('Habit created!');
+    }
+  }
+
+  Future<void> _completeHabit(
+      BuildContext context, WidgetRef ref, String habitId) async {
+    final error = await ref.read(habitControllerProvider).completeHabit(
+          userId: user.id,
+          habitId: habitId,
+        );
+    if (context.mounted) {
+      if (error != null) {
+        context.showSnackBar(error, isError: true);
+      } else {
+        context.showSnackBar('Habit completed!');
+      }
     }
   }
 
@@ -87,7 +103,12 @@ class HabitsTab extends ConsumerWidget {
               itemBuilder: (_, index) => Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: HabitCard(habit: items[index], user: user),
+                child: HabitCard(
+                  habit: items[index],
+                  user: user,
+                  onComplete: () =>
+                      _completeHabit(context, ref, items[index].id),
+                ),
               ),
             ),
           );

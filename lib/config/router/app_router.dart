@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:habitshare/presentation/pages/auth/login_page.dart';
 import 'package:habitshare/presentation/pages/home/main_shell_page.dart';
@@ -9,13 +10,18 @@ class AppRoutes {
   static const splash = '/';
   static const login = '/login';
   static const home = '/home';
+  static const singlePost = '/home/post';
+  static const profile = '/home/profile';
 }
+
+final rootNavigatorKey = GlobalKey<NavigatorState>();
 
 GoRouter createAppRouter({
   required bool isAuthenticated,
   required bool isLoading,
 }) {
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: AppRoutes.splash,
     routes: [
       GoRoute(
@@ -29,6 +35,28 @@ GoRouter createAppRouter({
       GoRoute(
         path: AppRoutes.home,
         builder: (context, state) => const MainShellPage(),
+        routes: [
+          GoRoute(
+            path: 'post',
+            builder: (context, state) {
+              final postId = state.uri.queryParameters['postId'];
+              final postOwnerId = state.uri.queryParameters['postOwnerId'];
+              return MainShellPage(
+                initialTabIndex: 1, // Feed tab
+                postId: postId,
+                postOwnerId: postOwnerId,
+              );
+            },
+          ),
+          GoRoute(
+            path: 'profile',
+            builder: (context, state) {
+              return const MainShellPage(
+                initialTabIndex: 2, // Profile tab
+              );
+            },
+          ),
+        ],
       ),
     ],
     redirect: (context, state) {

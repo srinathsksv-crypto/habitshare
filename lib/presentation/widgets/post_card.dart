@@ -6,6 +6,7 @@ import 'package:habitshare/domain/entities/habit_post_entity.dart';
 import 'package:habitshare/domain/entities/user_entity.dart';
 import 'package:habitshare/presentation/controllers/social_controller.dart';
 import 'package:habitshare/presentation/widgets/post_comments_sheet.dart';
+import 'package:habitshare/presentation/widgets/profile_avatar.dart';
 import 'package:habitshare/presentation/screens/user_profile_sheet.dart';
 import 'package:intl/intl.dart';
 
@@ -77,15 +78,10 @@ class _PostCardState extends ConsumerState<PostCard> {
                     );
                   },
                   borderRadius: BorderRadius.circular(24),
-                  child: CircleAvatar(
-                    backgroundImage: post.authorPhotoUrl != null
-                        ? CachedNetworkImageProvider(post.authorPhotoUrl!)
-                        : null,
-                    child: post.authorPhotoUrl == null
-                        ? Text(
-                            author.isNotEmpty ? author[0].toUpperCase() : '?',
-                          )
-                        : null,
+                  child: ProfileAvatar(
+                    photoUrl: post.authorPhotoUrl,
+                    fallbackText:
+                        author.isNotEmpty ? author[0].toUpperCase() : '?',
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -112,6 +108,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 Icon(Icons.track_changes, color: theme.colorScheme.primary),
               ],
             ),
@@ -183,3 +180,4 @@ class _PostCardState extends ConsumerState<PostCard> {
     );
   }
 }
+

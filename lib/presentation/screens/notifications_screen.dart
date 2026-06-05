@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:habitshare/core/extensions/context_extensions.dart';
 import 'package:habitshare/core/utils/date_utils.dart';
 import 'package:habitshare/domain/entities/notification_entity.dart';
 import 'package:habitshare/domain/entities/user_entity.dart';
 import 'package:habitshare/presentation/controllers/social_controller.dart';
 import 'package:habitshare/presentation/providers/notification_provider.dart';
+import 'package:habitshare/presentation/widgets/profile_avatar.dart';
 
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key, required this.user});
 
   final UserEntity user;
+
+  static bool isVisible = false;
 
   @override
   ConsumerState<NotificationsScreen> createState() =>
@@ -21,11 +25,18 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   @override
   void initState() {
     super.initState();
+    NotificationsScreen.isVisible = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref
           .read(socialControllerProvider)
           .markAllNotificationsRead(widget.user.id);
     });
+  }
+
+  @override
+  void dispose() {
+    NotificationsScreen.isVisible = false;
+    super.dispose();
   }
 
   @override
@@ -110,13 +121,24 @@ class _NotificationTile extends ConsumerWidget {
                   notificationId: notification.id,
                 );
           }
+
+          // Redirect to post if notification has postId
+          if (notification.postId != null &&
+              (notification.type == NotificationType.like ||
+                  notification.type == NotificationType.comment ||
+                  notification.type == NotificationType.newPost)) {
+            // For like/comment notifications, the receiver is the post owner
+            // For newPost notifications, the sender is the post owner
+            final postOwnerId = notification.type == NotificationType.newPost
+                ? (notification.senderId ?? userId)
+                : notification.receiverId;
+            context.push(
+                '/home/post?postId=${notification.postId}&postOwnerId=$postOwnerId');
+          }
         },
-        leading: CircleAvatar(
-          backgroundImage:
-              photoUrl != null ? NetworkImage(photoUrl) : null,
-          child: photoUrl == null
-              ? Text(name.isNotEmpty ? name[0].toUpperCase() : '?')
-              : null,
+        leading: ProfileAvatar(
+          photoUrl: photoUrl,
+          fallbackText: name.isNotEmpty ? name[0].toUpperCase() : '?',
         ),
         title: Text(notification.messageText(name)),
         subtitle: Text(AppDateUtils.timeAgo(notification.createdAt)),
@@ -134,3 +156,4 @@ class _NotificationTile extends ConsumerWidget {
     );
   }
 }
+
