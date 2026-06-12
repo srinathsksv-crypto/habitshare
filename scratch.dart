@@ -1,0 +1,1 @@
+import 'package:flutter/material.dart'; import 'package:action_slider/action_slider.dart'; void main() { ActionSlider.standard(toggleMargin: EdgeInsets.zero, action: (c) async {}, backgroundColor: Colors.red, toggleColor: Colors.blue, icon: const Icon(Icons.arrow_forward), child: const Text('Hello')); }

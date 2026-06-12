@@ -1,6 +1,13 @@
 import 'package:equatable/equatable.dart';
 
-enum HabitFrequency { daily, weekly, custom }
+enum HabitFrequency {
+  daily,
+  weekly,
+  weekdays,
+  monthlyDates,
+  timesPerWeek,
+  timesPerMonth,
+}
 
 enum HabitStatus { active, quit, completed }
 
@@ -14,6 +21,9 @@ class HabitEntity extends Equatable {
     this.colorHex = '#6750A4',
     this.frequency = HabitFrequency.daily,
     this.targetPerPeriod = 1,
+    this.selectedWeekdays,
+    this.selectedMonthDates,
+    this.targetCount,
     this.isArchived = false,
     this.status = HabitStatus.active,
     this.startDate,
@@ -22,6 +32,7 @@ class HabitEntity extends Equatable {
     this.streakCount = 0,
     this.lastCompletedAt,
     this.lastCompletedWindowIndex = 0,
+    this.currentPeriodCompletionCount = 0,
     required this.createdAt,
   });
 
@@ -33,6 +44,9 @@ class HabitEntity extends Equatable {
   final String colorHex;
   final HabitFrequency frequency;
   final int targetPerPeriod;
+  final List<int>? selectedWeekdays;
+  final List<int>? selectedMonthDates;
+  final int? targetCount;
   final bool isArchived;
   final HabitStatus status;
   final DateTime? startDate;
@@ -40,6 +54,7 @@ class HabitEntity extends Equatable {
   final int streakCount;
   final DateTime? lastCompletedAt;
   final int lastCompletedWindowIndex;
+  final int currentPeriodCompletionCount;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -57,11 +72,17 @@ class HabitEntity extends Equatable {
   HabitEntity copyWith({
     String? title,
     String? description,
+    HabitFrequency? frequency,
+    int? targetPerPeriod,
+    List<int>? selectedWeekdays,
+    List<int>? selectedMonthDates,
+    int? targetCount,
     HabitStatus? status,
     bool? isArchived,
     int? streakCount,
     DateTime? lastCompletedAt,
     int? lastCompletedWindowIndex,
+    int? currentPeriodCompletionCount,
     DateTime? startDate,
     DateTime? endDate,
     DateTime? updatedAt,
@@ -73,8 +94,11 @@ class HabitEntity extends Equatable {
       description: description ?? this.description,
       categoryId: categoryId,
       colorHex: colorHex,
-      frequency: frequency,
-      targetPerPeriod: targetPerPeriod,
+      frequency: frequency ?? this.frequency,
+      targetPerPeriod: targetPerPeriod ?? this.targetPerPeriod,
+      selectedWeekdays: selectedWeekdays ?? this.selectedWeekdays,
+      selectedMonthDates: selectedMonthDates ?? this.selectedMonthDates,
+      targetCount: targetCount ?? this.targetCount,
       isArchived: isArchived ?? this.isArchived,
       status: status ?? this.status,
       startDate: startDate ?? this.startDate,
@@ -82,6 +106,8 @@ class HabitEntity extends Equatable {
       lastCompletedAt: lastCompletedAt ?? this.lastCompletedAt,
       lastCompletedWindowIndex:
           lastCompletedWindowIndex ?? this.lastCompletedWindowIndex,
+      currentPeriodCompletionCount:
+          currentPeriodCompletionCount ?? this.currentPeriodCompletionCount,
       endDate: endDate ?? this.endDate,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -98,6 +124,9 @@ class HabitEntity extends Equatable {
         colorHex,
         frequency,
         targetPerPeriod,
+        selectedWeekdays,
+        selectedMonthDates,
+        targetCount,
         isArchived,
         status,
         startDate,
@@ -105,6 +134,7 @@ class HabitEntity extends Equatable {
         streakCount,
         lastCompletedAt,
         lastCompletedWindowIndex,
+        currentPeriodCompletionCount,
         createdAt,
         updatedAt,
       ];

@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:habitshare/core/extensions/context_extensions.dart';
 import 'package:habitshare/domain/entities/user_entity.dart';
 import 'package:habitshare/presentation/controllers/habit_controller.dart';
+import 'package:habitshare/presentation/pages/habit_form_page.dart';
 import 'package:habitshare/presentation/providers/habit_provider.dart';
 import 'package:habitshare/presentation/widgets/app_notification_button.dart';
-import 'package:habitshare/presentation/widgets/create_habit_dialog.dart';
 import 'package:habitshare/presentation/widgets/habit_card.dart';
 
 class HabitsTab extends ConsumerWidget {
@@ -14,9 +14,9 @@ class HabitsTab extends ConsumerWidget {
   final UserEntity user;
 
   Future<void> _openCreateDialog(BuildContext context, WidgetRef ref) async {
-    final created = await showDialog<bool>(
-      context: context,
-      builder: (_) => CreateHabitDialog(user: user),
+    final created = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => HabitFormPage(user: user)),
     );
     if (created == true && context.mounted) {
       context.showSnackBar('Habit created!');

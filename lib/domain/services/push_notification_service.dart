@@ -211,12 +211,13 @@ class PushNotificationService {
       // Read from assets using rootBundle instead of dart:io File
       // The .env usually has "./firebase-service-account.json", we strip the "./"
       final assetPath = serviceAccountPath.replaceFirst('./', '');
-      
+
       String jsonContent;
       try {
         jsonContent = await rootBundle.loadString(assetPath);
       } catch (e) {
-        print('ERROR: Service account JSON file not found in assets at $assetPath');
+        print(
+            'ERROR: Service account JSON file not found in assets at $assetPath');
         return null;
       }
 

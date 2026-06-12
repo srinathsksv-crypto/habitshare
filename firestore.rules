@@ -1,160 +1,310 @@
 rules_version = '2';
 
+
+
 service cloud.firestore {
+
   match /databases/{database}/documents {
 
+
+
     function isSignedIn() {
+
       return request.auth != null;
+
     }
+
+
 
     function isOwner(userId) {
+
       return isSignedIn() && request.auth.uid == userId;
+
     }
+
+
 
     // User-centric data model
+
     match /users/{userId} {
+
       allow read: if isSignedIn();
+
       allow create, update: if isOwner(userId);
+
       allow delete: if isOwner(userId);
 
+
+
       match /private/{docId} {
+
         allow read, write: if isOwner(userId);
+
       }
+
+
 
       match /habits/{habitId} {
+
         allow read: if isSignedIn();
+
         allow create, update, delete: if isOwner(userId);
+
       }
+
+
 
       match /habit_logs/{logId} {
+
         allow read: if isSignedIn();
+
         allow create, update, delete: if isOwner(userId);
+
       }
+
+
 
       match /shared_habits/{shareId} {
+
         allow read: if isSignedIn();
+
         allow create: if isSignedIn(); // Any user can share a habit with another user
+
         allow update, delete: if isOwner(userId); // Only the user it's shared with can modify/delete it
+
       }
+
+
 
       match /posts/{postId} {
+
         allow read: if isSignedIn();
+
         allow create, delete: if isOwner(userId);
+
         allow update: if isOwner(userId)
+
           || (
+
             isSignedIn()
+
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['like_count', 'comment_count'])
+
           );
+
+
 
         match /likes/{likeUserId} {
+
           allow read: if isSignedIn();
+
           allow create, delete: if isSignedIn() && likeUserId == request.auth.uid;
+
         }
+
+
 
         match /comments/{commentId} {
+
           allow read: if isSignedIn();
+
           allow create: if isSignedIn()
+
             && request.resource.data.user_id == request.auth.uid;
+
           allow delete: if isSignedIn()
+
             && resource.data.user_id == request.auth.uid;
+
         }
+
       }
+
+
 
       match /notifications/{notificationId} {
+
         allow read: if isOwner(userId);
+
         allow create: if isSignedIn();
+
         allow update: if isOwner(userId)
+
           || (
+
             isSignedIn()
+
             && resource.data.sender_id == request.auth.uid
+
             && request.resource.data.sender_id == resource.data.sender_id
+
             && request.resource.data.type == resource.data.type
+
           );
+
         allow delete: if isOwner(userId);
+
       }
+
+
 
       match /followers/{followerId} {
+
         allow read: if isSignedIn();
+
         allow create: if isSignedIn() && followerId == request.auth.uid;
+
         allow update: if isSignedIn()
+
           && (
+
             userId == request.auth.uid
+
             || followerId == request.auth.uid
+
           );
+
         allow delete: if isSignedIn()
+
           && (
+
             userId == request.auth.uid
+
             || followerId == request.auth.uid
+
           );
+
       }
+
+
 
       match /following/{followingId} {
+
         allow read: if isSignedIn();
+
         allow create: if isSignedIn() && request.auth.uid == userId;
+
         allow update: if isSignedIn()
+
           && (
+
             userId == request.auth.uid
+
             || followingId == request.auth.uid
+
           );
+
         allow delete: if isSignedIn()
+
           && (
+
             userId == request.auth.uid
+
             || followingId == request.auth.uid
+
           );
+
       }
+
+
 
       match /fcm_tokens/{tokenId} {
-        allow read: if isSignedIn();
+
+        allow read: if isOwner(userId);
+
         allow write: if isOwner(userId);
+
       }
 
-      match /settings/notifications {
-        allow read: if isSignedIn();
-        allow write: if isOwner(userId);
-      }
     }
+
+
 
     // Legacy top-level collections (read-only fallback / old data)
+
     match /habit_logs/{logId} {
+
       allow read: if isSignedIn();
+
       allow create: if isSignedIn()
+
         && request.resource.data.user_id == request.auth.uid;
+
       allow update, delete: if isSignedIn()
+
         && resource.data.user_id == request.auth.uid;
+
     }
+
+
 
     match /shared_habits/{shareId} {
+
       allow read: if isSignedIn();
+
       allow create: if isSignedIn()
+
         && request.resource.data.owner_id == request.auth.uid;
+
       allow delete: if isSignedIn()
+
         && resource.data.owner_id == request.auth.uid;
+
     }
+
+
 
     // Rule for posts collection group:
+
     // Allows collectionGroup('posts') reads to succeed for authenticated users.
+
     // Writes are only allowed via the user-centric nested path rule under /users/{userId}/posts/{postId}.
+
     match /{path=**}/posts/{postId} {
+
       allow read: if isSignedIn();
+
       allow create, update, delete: if false;
+
+
 
       match /likes/{likeUserId} {
+
         allow read: if isSignedIn();
+
         allow create, update, delete: if false;
+
       }
+
+
 
       match /comments/{commentId} {
+
         allow read: if isSignedIn();
+
         allow create, update, delete: if false;
+
       }
+
     }
 
+
+
     // Rule for notifications collection group:
+
     // Allows users to query notifications where they are the sender_id.
+
     // This is used when a user updates their profile photo to update their photo in previous notifications.
+
     match /{path=**}/notifications/{notificationId} {
+
       allow read: if isSignedIn() && resource.data.sender_id == request.auth.uid;
+
       allow create, update, delete: if false;
+
     }
+
   }
+
 }
+

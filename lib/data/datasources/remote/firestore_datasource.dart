@@ -60,6 +60,13 @@ class FirestoreDataSource {
       colorHex: data['color_hex'] as String? ?? '#6750A4',
       frequency: data['frequency'] as String? ?? 'daily',
       targetPerPeriod: (data['target_per_period'] as num?)?.toInt() ?? 1,
+      selectedWeekdays: (data['selected_weekdays'] as List<dynamic>?)
+          ?.map((e) => e as int)
+          .toList(),
+      selectedMonthDates: (data['selected_month_dates'] as List<dynamic>?)
+          ?.map((e) => e as int)
+          .toList(),
+      targetCount: (data['target_count'] as num?)?.toInt(),
       isArchived: data['is_archived'] as bool? ?? false,
       status: data['status'] as String? ?? 'active',
       startDate: FirestoreParseUtils.parseDateTimeOrNull(data['start_date']),
@@ -69,6 +76,8 @@ class FirestoreDataSource {
           FirestoreParseUtils.parseDateTimeOrNull(data['last_completed_at']),
       lastCompletedWindowIndex:
           (data['last_completed_window_index'] as num?)?.toInt() ?? 0,
+      currentPeriodCompletionCount:
+          (data['current_period_completion_count'] as num?)?.toInt() ?? 0,
       createdAt: FirestoreParseUtils.parseDateTime(data['created_at']),
       updatedAt: FirestoreParseUtils.parseDateTimeOrNull(data['updated_at']),
     );
@@ -162,6 +171,14 @@ class FirestoreDataSource {
         colorHex: habitData['color_hex'] as String? ?? '#6750A4',
         frequency: habitData['frequency'] as String? ?? 'daily',
         targetPerPeriod: (habitData['target_per_period'] as num?)?.toInt() ?? 1,
+        selectedWeekdays: (habitData['selected_weekdays'] as List<dynamic>?)
+            ?.map((e) => e as int)
+            .toList(),
+        selectedMonthDates:
+            (habitData['selected_month_dates'] as List<dynamic>?)
+                ?.map((e) => e as int)
+                .toList(),
+        targetCount: (habitData['target_count'] as num?)?.toInt(),
         isArchived: habitData['is_archived'] as bool? ?? false,
         status: habitData['status'] as String? ?? 'active',
         startDate:
@@ -189,6 +206,34 @@ class FirestoreDataSource {
       final newStreak = HabitStreakService.calculateNewStreak(habitEntity, now);
       final today = DateTime(now.year, now.month, now.day);
 
+      // Calculate window index for logging
+      int? windowIndex;
+      if (habitEntity.frequency == HabitFrequency.weekly) {
+        windowIndex = HabitStreakService.getCurrentWindowIndex(
+          habitEntity.createdAt,
+          now,
+        );
+      } else if (habitEntity.frequency == HabitFrequency.timesPerWeek) {
+        windowIndex = HabitStreakService.getCurrentWindowIndex(
+          habitEntity.createdAt,
+          now,
+        );
+      } else if (habitEntity.frequency == HabitFrequency.timesPerMonth) {
+        windowIndex = _getCurrentMonthIndex(habitEntity.createdAt, now);
+      }
+
+      // Create habit log for tracking
+      if (windowIndex != null) {
+        final habitLog = HabitLogModel(
+          id: '',
+          habitId: habitId,
+          userId: userId,
+          loggedAt: today,
+          windowIndex: windowIndex,
+        );
+        await createHabitLog(habitLog);
+      }
+
       // Update habit with completion data
       final updateData = <String, dynamic>{
         'streak_count': newStreak,
@@ -197,11 +242,35 @@ class FirestoreDataSource {
       };
 
       if (habitEntity.frequency == HabitFrequency.weekly) {
-        final currentWindowIndex = HabitStreakService.getCurrentWindowIndex(
-          habitEntity.createdAt,
-          now,
-        );
-        updateData['last_completed_window_index'] = currentWindowIndex;
+        updateData['last_completed_window_index'] = windowIndex;
+      } else if (habitEntity.frequency == HabitFrequency.timesPerWeek) {
+        updateData['last_completed_window_index'] = windowIndex;
+        // Check if period changed, reset count if so
+        final lastWindowIndex =
+            (habitData['last_completed_window_index'] as num?)?.toInt() ?? -1;
+        if (windowIndex != lastWindowIndex) {
+          updateData['current_period_completion_count'] = 1;
+        } else {
+          // Increment completion count for current period
+          final currentCount =
+              (habitData['current_period_completion_count'] as num?)?.toInt() ??
+                  0;
+          updateData['current_period_completion_count'] = currentCount + 1;
+        }
+      } else if (habitEntity.frequency == HabitFrequency.timesPerMonth) {
+        updateData['last_completed_window_index'] = windowIndex;
+        // Check if period changed, reset count if so
+        final lastWindowIndex =
+            (habitData['last_completed_window_index'] as num?)?.toInt() ?? -1;
+        if (windowIndex != lastWindowIndex) {
+          updateData['current_period_completion_count'] = 1;
+        } else {
+          // Increment completion count for current period
+          final currentCount =
+              (habitData['current_period_completion_count'] as num?)?.toInt() ??
+                  0;
+          updateData['current_period_completion_count'] = currentCount + 1;
+        }
       }
 
       await habitRef.update(updateData);
@@ -219,6 +288,14 @@ class FirestoreDataSource {
         frequency: updatedData['frequency'] as String? ?? 'daily',
         targetPerPeriod:
             (updatedData['target_per_period'] as num?)?.toInt() ?? 1,
+        selectedWeekdays: (updatedData['selected_weekdays'] as List<dynamic>?)
+            ?.map((e) => e as int)
+            .toList(),
+        selectedMonthDates:
+            (updatedData['selected_month_dates'] as List<dynamic>?)
+                ?.map((e) => e as int)
+                .toList(),
+        targetCount: (updatedData['target_count'] as num?)?.toInt(),
         isArchived: updatedData['is_archived'] as bool? ?? false,
         status: updatedData['status'] as String? ?? 'active',
         startDate:
@@ -240,6 +317,17 @@ class FirestoreDataSource {
         code: e.code,
       );
     }
+  }
+
+  /// Calculates the current month index for a habit
+  static int _getCurrentMonthIndex(DateTime createdAt, DateTime now) {
+    final creationDate =
+        DateTime(createdAt.year, createdAt.month, createdAt.day);
+    final currentDate = DateTime(now.year, now.month, now.day);
+
+    final yearDiff = currentDate.year - creationDate.year;
+    final monthDiff = currentDate.month - creationDate.month;
+    return yearDiff * 12 + monthDiff;
   }
 
   Future<void> deleteHabit({
@@ -1029,20 +1117,17 @@ class FirestoreDataSource {
   }
 
   Stream<List<FollowEntity>> watchFollowing(String userId) {
-    return _paths
-        .following(userId)
-        .snapshots()
-        .asyncMap((snapshot) {
-          final docs = snapshot.docs.where((doc) {
-            final status = doc.data()['status'] as String?;
-            return status == null || status == AppConstants.followStatusAccepted;
-          }).toList();
-          return _mapFollowDocs(
-            docs,
-            ownerUserId: userId,
-            isFollowingList: true,
-          );
-        });
+    return _paths.following(userId).snapshots().asyncMap((snapshot) {
+      final docs = snapshot.docs.where((doc) {
+        final status = doc.data()['status'] as String?;
+        return status == null || status == AppConstants.followStatusAccepted;
+      }).toList();
+      return _mapFollowDocs(
+        docs,
+        ownerUserId: userId,
+        isFollowingList: true,
+      );
+    });
   }
 
   Future<List<FollowEntity>> getFollowers(String userId) async {
@@ -1066,20 +1151,17 @@ class FirestoreDataSource {
   }
 
   Stream<List<FollowEntity>> watchFollowers(String userId) {
-    return _paths
-        .followers(userId)
-        .snapshots()
-        .asyncMap((snapshot) {
-          final docs = snapshot.docs.where((doc) {
-            final status = doc.data()['status'] as String?;
-            return status == null || status == AppConstants.followStatusAccepted;
-          }).toList();
-          return _mapFollowDocs(
-            docs,
-            ownerUserId: userId,
-            isFollowingList: false,
-          );
-        });
+    return _paths.followers(userId).snapshots().asyncMap((snapshot) {
+      final docs = snapshot.docs.where((doc) {
+        final status = doc.data()['status'] as String?;
+        return status == null || status == AppConstants.followStatusAccepted;
+      }).toList();
+      return _mapFollowDocs(
+        docs,
+        ownerUserId: userId,
+        isFollowingList: false,
+      );
+    });
   }
 
   Future<List<FollowEntity>> getPendingFollowRequests(String userId) async {

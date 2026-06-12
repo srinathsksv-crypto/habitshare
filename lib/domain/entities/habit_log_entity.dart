@@ -8,6 +8,7 @@ class HabitLogEntity extends Equatable {
     required this.loggedAt,
     this.note,
     this.value = 1,
+    this.windowIndex,
   });
 
   final String id;
@@ -16,7 +17,9 @@ class HabitLogEntity extends Equatable {
   final DateTime loggedAt;
   final String? note;
   final int value;
+  final int? windowIndex;
 
   @override
-  List<Object?> get props => [id, habitId, userId, loggedAt, note, value];
+  List<Object?> get props =>
+      [id, habitId, userId, loggedAt, note, value, windowIndex];
 }

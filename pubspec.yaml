@@ -1,88 +1,174 @@
 name: habitshare
+
 description: HabitShare - Share and track habits with friends.
+
 publish_to: 'none'
+
 version: 1.0.0+1
 
+
+
 environment:
+
   sdk: ^3.5.0
+
   flutter: '>=3.7.0'
 
+
+
 dependencies:
+
   flutter:
+
     sdk: flutter
+
+
 
   # State Management
+
   flutter_riverpod: ^3.3.2-dev.2
+
   riverpod_annotation: ^4.0.3-dev.2
 
+
+
   # Navigation
+
   go_router: ^17.2.3
 
+
+
   # Firebase
+
   firebase_core: ^4.9.0
+
   firebase_auth: ^6.5.1
+
   cloud_firestore: ^6.4.1
+
   firebase_storage: ^13.4.1
+
   firebase_messaging: ^16.3.0
 
+
+
   # Authentication
+
   google_sign_in: ^7.2.0
+
   sign_in_with_apple: ^8.0.0
 
+
+
   # Local Storage
+
   shared_preferences: ^2.5.3
+
   hive_flutter: ^1.1.0
+
   sqflite: ^2.4.2
+
   path: ^1.9.1
+
   path_provider: ^2.1.5
 
+
+
   # Data Processing
+
   csv: ^8.0.0
+
   freezed_annotation: ^3.0.0
+
   json_annotation: ^4.9.0
 
+
+
   # UI/UX
+
   flutter_animate: ^4.5.2
+
   shimmer: ^3.0.0
+
   cached_network_image: ^3.4.1
+
   image_picker: ^1.1.2
+
   photo_view: ^0.15.0
+
   intl: ^0.20.2
+
   adaptive_theme: ^3.7.0
 
+
+
   # Error Handling & Logging
+
   logger: ^2.5.0
+
   sentry_flutter: 9.20.0
+
   dartz: ^0.10.1
 
+
+
   # API & HTTP
+
   dio: ^5.8.0+1
+
   googleapis_auth: ^2.3.1
+
   http: ^1.2.2
 
+  firebase_admin: ^0.3.1+4
+
+
+
   # Configuration
+
   flutter_dotenv: ^6.0.1
+
   get_it: ^9.2.1
+
   uuid: ^4.5.1
+
   equatable: ^2.0.7
+
   image_cropper: ^12.2.1
+
   flutter_local_notifications: ^21.0.0
-  animated_emoji: ^3.2.1
+
+
 
 dev_dependencies:
+
   flutter_test:
+
     sdk: flutter
+
   flutter_lints: ^6.0.0
+
   build_runner: ^2.4.15
+
   freezed: ^3.0.6
+
   json_serializable: ^6.9.5
+
   riverpod_generator: ^4.0.3
+
   mockito: 5.6.4
+
   mocktail: ^1.0.5
 
+
+
 flutter:
+
   uses-material-design: true
+
   assets:
+
     - .env
+
     - .env.example
-    - firebase-service-account.json
+

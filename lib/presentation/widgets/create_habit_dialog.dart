@@ -5,6 +5,9 @@ import 'package:habitshare/core/utils/date_utils.dart';
 import 'package:habitshare/domain/entities/habit_entity.dart';
 import 'package:habitshare/domain/entities/user_entity.dart';
 import 'package:habitshare/presentation/controllers/habit_controller.dart';
+import 'package:habitshare/presentation/widgets/month_date_selector.dart';
+import 'package:habitshare/presentation/widgets/target_count_selector.dart';
+import 'package:habitshare/presentation/widgets/weekday_selector.dart';
 
 class CreateHabitDialog extends ConsumerStatefulWidget {
   const CreateHabitDialog({super.key, required this.user});
@@ -24,6 +27,9 @@ class _CreateHabitDialogState extends ConsumerState<CreateHabitDialog> {
   DateTime _startDate = DateTime.now();
   DateTime? _endDate;
   HabitFrequency _frequency = HabitFrequency.daily;
+  List<int> _selectedWeekdays = [];
+  List<int> _selectedMonthDates = [];
+  int _targetCount = 1;
 
   @override
   void dispose() {
@@ -73,6 +79,15 @@ class _CreateHabitDialogState extends ConsumerState<CreateHabitDialog> {
           title: title,
           description: _descriptionController.text,
           frequency: _frequency,
+          selectedWeekdays:
+              _frequency == HabitFrequency.weekdays ? _selectedWeekdays : null,
+          selectedMonthDates: _frequency == HabitFrequency.monthlyDates
+              ? _selectedMonthDates
+              : null,
+          targetCount: (_frequency == HabitFrequency.timesPerWeek ||
+                  _frequency == HabitFrequency.timesPerMonth)
+              ? _targetCount
+              : null,
           shareAsPost: _shareAsPost,
           postMessage: _messageController.text,
           startDate: _startDate,
@@ -157,16 +172,68 @@ class _CreateHabitDialogState extends ConsumerState<CreateHabitDialog> {
                             value: HabitFrequency.weekly,
                             child: Text('Weekly'),
                           ),
+                          DropdownMenuItem(
+                            value: HabitFrequency.weekdays,
+                            child: Text('Specific Weekdays'),
+                          ),
+                          DropdownMenuItem(
+                            value: HabitFrequency.monthlyDates,
+                            child: Text('Specific Dates of Month'),
+                          ),
+                          DropdownMenuItem(
+                            value: HabitFrequency.timesPerWeek,
+                            child: Text('X Times Per Week'),
+                          ),
+                          DropdownMenuItem(
+                            value: HabitFrequency.timesPerMonth,
+                            child: Text('X Times Per Month'),
+                          ),
                         ],
                         onChanged: _isLoading
                             ? null
                             : (value) {
                                 if (value != null) {
-                                  setState(() => _frequency = value);
+                                  setState(() {
+                                    _frequency = value;
+                                    _selectedWeekdays = [];
+                                    _selectedMonthDates = [];
+                                    _targetCount = 1;
+                                  });
                                 }
                               },
                       ),
                       const SizedBox(height: 12),
+                      if (_frequency == HabitFrequency.weekdays) ...[
+                        const Text('Select Weekdays'),
+                        const SizedBox(height: 8),
+                        WeekdaySelector(
+                          selectedWeekdays: _selectedWeekdays,
+                          onChanged: (value) =>
+                              setState(() => _selectedWeekdays = value),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      if (_frequency == HabitFrequency.monthlyDates) ...[
+                        const Text('Select Dates'),
+                        const SizedBox(height: 8),
+                        MonthDateSelector(
+                          selectedDates: _selectedMonthDates,
+                          onChanged: (value) =>
+                              setState(() => _selectedMonthDates = value),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      if (_frequency == HabitFrequency.timesPerWeek ||
+                          _frequency == HabitFrequency.timesPerMonth) ...[
+                        const Text('Target Count'),
+                        const SizedBox(height: 8),
+                        TargetCountSelector(
+                          count: _targetCount,
+                          onChanged: (value) =>
+                              setState(() => _targetCount = value),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         title: const Text('Start date'),

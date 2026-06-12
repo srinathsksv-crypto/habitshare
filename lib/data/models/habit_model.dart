@@ -15,6 +15,9 @@ sealed class HabitModel with _$HabitModel {
     @JsonKey(name: 'color_hex') @Default('#6750A4') String colorHex,
     @Default('daily') String frequency,
     @JsonKey(name: 'target_per_period') @Default(1) int targetPerPeriod,
+    @JsonKey(name: 'selected_weekdays') List<int>? selectedWeekdays,
+    @JsonKey(name: 'selected_month_dates') List<int>? selectedMonthDates,
+    @JsonKey(name: 'target_count') int? targetCount,
     @JsonKey(name: 'is_archived') @Default(false) bool isArchived,
     @Default('active') String status,
     @JsonKey(name: 'start_date') DateTime? startDate,
@@ -24,6 +27,9 @@ sealed class HabitModel with _$HabitModel {
     @JsonKey(name: 'last_completed_window_index')
     @Default(0)
     int lastCompletedWindowIndex,
+    @JsonKey(name: 'current_period_completion_count')
+    @Default(0)
+    int currentPeriodCompletionCount,
     @JsonKey(name: 'created_at') required DateTime createdAt,
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
   }) = _HabitModel;
@@ -42,6 +48,9 @@ extension HabitModelX on HabitModel {
         colorHex: colorHex,
         frequency: _parseFrequency(frequency),
         targetPerPeriod: targetPerPeriod,
+        selectedWeekdays: selectedWeekdays,
+        selectedMonthDates: selectedMonthDates,
+        targetCount: targetCount,
         isArchived: isArchived,
         status: _parseStatus(status),
         startDate: startDate ?? createdAt,
@@ -49,6 +58,7 @@ extension HabitModelX on HabitModel {
         streakCount: streakCount,
         lastCompletedAt: lastCompletedAt,
         lastCompletedWindowIndex: lastCompletedWindowIndex,
+        currentPeriodCompletionCount: currentPeriodCompletionCount,
         createdAt: createdAt,
         updatedAt: updatedAt,
       );
@@ -62,6 +72,9 @@ extension HabitModelX on HabitModel {
         colorHex: entity.colorHex,
         frequency: entity.frequency.name,
         targetPerPeriod: entity.targetPerPeriod,
+        selectedWeekdays: entity.selectedWeekdays,
+        selectedMonthDates: entity.selectedMonthDates,
+        targetCount: entity.targetCount,
         isArchived: entity.isArchived,
         status: entity.status.name,
         startDate: entity.startDate,
@@ -69,6 +82,7 @@ extension HabitModelX on HabitModel {
         streakCount: entity.streakCount,
         lastCompletedAt: entity.lastCompletedAt,
         lastCompletedWindowIndex: entity.lastCompletedWindowIndex,
+        currentPeriodCompletionCount: entity.currentPeriodCompletionCount,
         createdAt: entity.createdAt,
         updatedAt: entity.updatedAt,
       );

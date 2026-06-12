@@ -13,6 +13,7 @@ sealed class HabitLogModel with _$HabitLogModel {
     @JsonKey(name: 'logged_at') required DateTime loggedAt,
     String? note,
     @Default(1) int value,
+    @JsonKey(name: 'window_index') int? windowIndex,
   }) = _HabitLogModel;
 
   factory HabitLogModel.fromJson(Map<String, dynamic> json) =>
@@ -21,20 +22,22 @@ sealed class HabitLogModel with _$HabitLogModel {
 
 extension HabitLogModelX on HabitLogModel {
   HabitLogEntity toEntity() => HabitLogEntity(
-    id: id,
-    habitId: habitId,
-    userId: userId,
-    loggedAt: loggedAt,
-    note: note,
-    value: value,
-  );
+        id: id,
+        habitId: habitId,
+        userId: userId,
+        loggedAt: loggedAt,
+        note: note,
+        value: value,
+        windowIndex: windowIndex,
+      );
 
   static HabitLogModel fromEntity(HabitLogEntity entity) => HabitLogModel(
-    id: entity.id,
-    habitId: entity.habitId,
-    userId: entity.userId,
-    loggedAt: entity.loggedAt,
-    note: entity.note,
-    value: entity.value,
-  );
+        id: entity.id,
+        habitId: entity.habitId,
+        userId: entity.userId,
+        loggedAt: entity.loggedAt,
+        note: entity.note,
+        value: entity.value,
+        windowIndex: entity.windowIndex,
+      );
 }
