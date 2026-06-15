@@ -10,9 +10,14 @@ import 'package:habitshare/presentation/widgets/target_count_selector.dart';
 import 'package:habitshare/presentation/widgets/weekday_selector.dart';
 
 class HabitFormPage extends ConsumerStatefulWidget {
-  const HabitFormPage({super.key, required this.user});
+  const HabitFormPage({
+    super.key,
+    required this.user,
+    this.habit,
+  });
 
   final UserEntity user;
+  final HabitEntity? habit;
 
   @override
   ConsumerState<HabitFormPage> createState() => _HabitFormPageState();
@@ -30,6 +35,27 @@ class _HabitFormPageState extends ConsumerState<HabitFormPage> {
   List<int> _selectedWeekdays = [];
   List<int> _selectedMonthDates = [];
   int _targetCount = 1;
+  String _colorHex = '#6750A4';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.habit != null) {
+      debugPrint('Edit Habit - ID: ${widget.habit!.id}');
+      debugPrint('Edit Habit - Title: ${widget.habit!.title}');
+
+      // Populate fields from habit
+      _titleController.text = widget.habit!.title;
+      _descriptionController.text = widget.habit!.description ?? '';
+      _colorHex = widget.habit!.colorHex;
+      _frequency = widget.habit!.frequency;
+      _selectedWeekdays = widget.habit!.selectedWeekdays ?? [];
+      _selectedMonthDates = widget.habit!.selectedMonthDates ?? [];
+      _targetCount = widget.habit!.targetCount ?? 1;
+      _startDate = widget.habit!.startDate ?? DateTime.now();
+      _endDate = widget.habit!.endDate;
+    }
+  }
 
   @override
   void dispose() {
@@ -74,25 +100,52 @@ class _HabitFormPageState extends ConsumerState<HabitFormPage> {
     }
 
     setState(() => _isLoading = true);
-    final error = await ref.read(habitControllerProvider).createHabit(
-          user: widget.user,
-          title: title,
-          description: _descriptionController.text,
-          frequency: _frequency,
-          selectedWeekdays:
-              _frequency == HabitFrequency.weekdays ? _selectedWeekdays : null,
-          selectedMonthDates: _frequency == HabitFrequency.monthlyDates
-              ? _selectedMonthDates
-              : null,
-          targetCount: (_frequency == HabitFrequency.timesPerWeek ||
-                  _frequency == HabitFrequency.timesPerMonth)
-              ? _targetCount
-              : null,
-          shareAsPost: _shareAsPost,
-          postMessage: _messageController.text,
-          startDate: _startDate,
-          endDate: _endDate,
-        );
+
+    String? error;
+    if (widget.habit == null) {
+      // Create mode
+      error = await ref.read(habitControllerProvider).createHabit(
+            user: widget.user,
+            title: title,
+            description: _descriptionController.text,
+            frequency: _frequency,
+            selectedWeekdays: _frequency == HabitFrequency.weekdays
+                ? _selectedWeekdays
+                : null,
+            selectedMonthDates: _frequency == HabitFrequency.monthlyDates
+                ? _selectedMonthDates
+                : null,
+            targetCount: (_frequency == HabitFrequency.timesPerWeek ||
+                    _frequency == HabitFrequency.timesPerMonth)
+                ? _targetCount
+                : null,
+            shareAsPost: _shareAsPost,
+            postMessage: _messageController.text,
+            startDate: _startDate,
+            endDate: _endDate,
+          );
+    } else {
+      // Edit mode
+      error = await ref.read(habitControllerProvider).updateHabit(
+            habit: widget.habit!,
+            title: title,
+            description: _descriptionController.text,
+            frequency: _frequency,
+            selectedWeekdays: _frequency == HabitFrequency.weekdays
+                ? _selectedWeekdays
+                : null,
+            selectedMonthDates: _frequency == HabitFrequency.monthlyDates
+                ? _selectedMonthDates
+                : null,
+            targetCount: (_frequency == HabitFrequency.timesPerWeek ||
+                    _frequency == HabitFrequency.timesPerMonth)
+                ? _targetCount
+                : null,
+            startDate: _startDate,
+            endDate: _endDate,
+            colorHex: _colorHex,
+          );
+    }
 
     if (!mounted) {
       return;
@@ -104,14 +157,51 @@ class _HabitFormPageState extends ConsumerState<HabitFormPage> {
       return;
     }
 
-    Navigator.of(context).pop(true);
+    if (widget.habit != null) {
+      // Return updated habit for edit mode
+      // Construct directly to avoid copyWith null coalescing issue
+      final updatedHabit = HabitEntity(
+        id: widget.habit!.id,
+        userId: widget.habit!.userId,
+        title: title,
+        description: _descriptionController.text,
+        categoryId: widget.habit!.categoryId,
+        colorHex: _colorHex,
+        frequency: _frequency,
+        targetPerPeriod: widget.habit!.targetPerPeriod,
+        selectedWeekdays:
+            _frequency == HabitFrequency.weekdays ? _selectedWeekdays : null,
+        selectedMonthDates: _frequency == HabitFrequency.monthlyDates
+            ? _selectedMonthDates
+            : null,
+        targetCount: (_frequency == HabitFrequency.timesPerWeek ||
+                _frequency == HabitFrequency.timesPerMonth)
+            ? _targetCount
+            : null,
+        isArchived: widget.habit!.isArchived,
+        status: widget.habit!.status,
+        startDate: _startDate,
+        endDate: _endDate,
+        streakCount: widget.habit!.streakCount,
+        lastCompletedAt: widget.habit!.lastCompletedAt,
+        lastCompletedWindowIndex: widget.habit!.lastCompletedWindowIndex,
+        currentPeriodCompletionCount:
+            widget.habit!.currentPeriodCompletionCount,
+        createdAt: widget.habit!.createdAt,
+        updatedAt: DateTime.now(),
+      );
+      Navigator.of(context).pop(updatedHabit);
+    } else {
+      // Return true for create mode
+      Navigator.of(context).pop(true);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Habit'),
+        title: Text(widget.habit == null ? 'Create Habit' : 'Edit Habit'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -216,8 +306,7 @@ class _HabitFormPageState extends ConsumerState<HabitFormPage> {
                 const SizedBox(height: 8),
                 TargetCountSelector(
                   count: _targetCount,
-                  onChanged: (value) =>
-                      setState(() => _targetCount = value),
+                  onChanged: (value) => setState(() => _targetCount = value),
                 ),
                 const SizedBox(height: 12),
               ],
@@ -226,8 +315,7 @@ class _HabitFormPageState extends ConsumerState<HabitFormPage> {
                 title: const Text('Start date'),
                 subtitle: Text(AppDateUtils.formatDay(_startDate)),
                 trailing: const Icon(Icons.calendar_today),
-                onTap:
-                    _isLoading ? null : () => _pickDate(isStart: true),
+                onTap: _isLoading ? null : () => _pickDate(isStart: true),
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -250,8 +338,7 @@ class _HabitFormPageState extends ConsumerState<HabitFormPage> {
                     const Icon(Icons.event),
                   ],
                 ),
-                onTap:
-                    _isLoading ? null : () => _pickDate(isStart: false),
+                onTap: _isLoading ? null : () => _pickDate(isStart: false),
               ),
               const SizedBox(height: 8),
               SwitchListTile(
@@ -289,7 +376,7 @@ class _HabitFormPageState extends ConsumerState<HabitFormPage> {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Create'),
+                    : Text(widget.habit == null ? 'Create' : 'Confirm'),
               ),
             ],
           ),

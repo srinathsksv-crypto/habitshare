@@ -5,8 +5,9 @@ import 'package:habitshare/core/utils/date_utils.dart';
 import 'package:habitshare/domain/entities/habit_entity.dart';
 import 'package:habitshare/domain/entities/user_entity.dart';
 import 'package:habitshare/presentation/controllers/habit_controller.dart';
+import 'package:habitshare/presentation/pages/habit_form_page.dart';
 
-class HabitDetailsScreen extends ConsumerWidget {
+class HabitDetailsScreen extends ConsumerStatefulWidget {
   const HabitDetailsScreen({
     super.key,
     required this.habit,
@@ -16,7 +17,20 @@ class HabitDetailsScreen extends ConsumerWidget {
   final HabitEntity habit;
   final UserEntity user;
 
-  Future<void> _confirmQuit(BuildContext context, WidgetRef ref) async {
+  @override
+  ConsumerState<HabitDetailsScreen> createState() => _HabitDetailsScreenState();
+}
+
+class _HabitDetailsScreenState extends ConsumerState<HabitDetailsScreen> {
+  late HabitEntity _habit;
+
+  @override
+  void initState() {
+    super.initState();
+    _habit = widget.habit;
+  }
+
+  Future<void> _confirmQuit(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -39,7 +53,7 @@ class HabitDetailsScreen extends ConsumerWidget {
     if (confirmed != true || !context.mounted) {
       return;
     }
-    final error = await ref.read(habitControllerProvider).quitHabit(habit);
+    final error = await ref.read(habitControllerProvider).quitHabit(_habit);
     if (!context.mounted) {
       return;
     }
@@ -51,7 +65,7 @@ class HabitDetailsScreen extends ConsumerWidget {
     Navigator.of(context).pop();
   }
 
-  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+  Future<void> _confirmDelete(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -78,7 +92,7 @@ class HabitDetailsScreen extends ConsumerWidget {
     if (confirmed != true || !context.mounted) {
       return;
     }
-    final error = await ref.read(habitControllerProvider).deleteHabit(habit);
+    final error = await ref.read(habitControllerProvider).deleteHabit(_habit);
     if (!context.mounted) {
       return;
     }
@@ -91,17 +105,40 @@ class HabitDetailsScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final start = habit.startDate ?? habit.createdAt;
-    final end = habit.endDate;
-    final duration = habit.durationInDays;
+  Widget build(BuildContext context) {
+    final start = _habit.startDate ?? _habit.createdAt;
+    final end = _habit.endDate;
+    final duration = _habit.durationInDays;
 
     return Scaffold(
-      appBar: AppBar(title: Text(habit.title)),
+      appBar: AppBar(
+        title: Text(_habit.title),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: () async {
+              final updatedHabit = await Navigator.push<HabitEntity>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => HabitFormPage(
+                    user: widget.user,
+                    habit: _habit,
+                  ),
+                ),
+              );
+              if (updatedHabit != null && mounted) {
+                setState(() {
+                  _habit = updatedHabit;
+                });
+              }
+            },
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          if (!habit.isActive)
+          if (!_habit.isActive)
             Card(
               color: context.colors.errorContainer,
               child: const ListTile(
@@ -109,23 +146,24 @@ class HabitDetailsScreen extends ConsumerWidget {
                 title: Text('This habit is no longer active'),
               ),
             ),
-          if (habit.description?.isNotEmpty == true) ...[
-            Text(habit.description!, style: context.textTheme.bodyLarge),
+          if (_habit.description?.isNotEmpty == true) ...[
+            Text(_habit.description!, style: context.textTheme.bodyLarge),
             const SizedBox(height: 20),
           ],
           _InfoRow(
             label: 'Frequency',
-            value: '${habit.targetPerPeriod}x ${habit.frequency.name}',
+            value: '${_habit.targetPerPeriod}x ${_habit.frequency.name}',
           ),
           _InfoRow(label: 'Start', value: AppDateUtils.formatDay(start)),
-          if (end != null) _InfoRow(label: 'End', value: AppDateUtils.formatDay(end)),
+          if (end != null)
+            _InfoRow(label: 'End', value: AppDateUtils.formatDay(end)),
           if (duration != null)
             _InfoRow(label: 'Duration', value: '$duration days'),
-          _InfoRow(label: 'Status', value: habit.status.name),
+          _InfoRow(label: 'Status', value: _habit.status.name),
           const SizedBox(height: 24),
-          if (habit.isActive) ...[
+          if (_habit.isActive) ...[
             FilledButton.tonal(
-              onPressed: () => _confirmQuit(context, ref),
+              onPressed: () => _confirmQuit(context),
               child: const Text('Quit habit'),
             ),
             const SizedBox(height: 12),
@@ -135,7 +173,7 @@ class HabitDetailsScreen extends ConsumerWidget {
               foregroundColor: context.colors.error,
               side: BorderSide(color: context.colors.error),
             ),
-            onPressed: () => _confirmDelete(context, ref),
+            onPressed: () => _confirmDelete(context),
             child: const Text('Delete habit'),
           ),
         ],

@@ -72,6 +72,7 @@ class HabitEntity extends Equatable {
   HabitEntity copyWith({
     String? title,
     String? description,
+    String? colorHex,
     HabitFrequency? frequency,
     int? targetPerPeriod,
     List<int>? selectedWeekdays,
@@ -93,7 +94,7 @@ class HabitEntity extends Equatable {
       title: title ?? this.title,
       description: description ?? this.description,
       categoryId: categoryId,
-      colorHex: colorHex,
+      colorHex: colorHex ?? this.colorHex,
       frequency: frequency ?? this.frequency,
       targetPerPeriod: targetPerPeriod ?? this.targetPerPeriod,
       selectedWeekdays: selectedWeekdays ?? this.selectedWeekdays,

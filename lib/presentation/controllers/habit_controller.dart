@@ -95,6 +95,59 @@ class HabitController {
     );
   }
 
+  Future<String?> updateHabit({
+    required HabitEntity habit,
+    required String title,
+    String? description,
+    HabitFrequency? frequency,
+    List<int>? selectedWeekdays,
+    List<int>? selectedMonthDates,
+    int? targetCount,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? colorHex,
+  }) async {
+    final effectiveStart = startDate ?? habit.startDate ?? habit.createdAt;
+    if (endDate != null && endDate.isBefore(effectiveStart)) {
+      return 'End date must be on or after start date';
+    }
+
+    // Construct directly to avoid copyWith null coalescing issue
+    final updated = HabitEntity(
+      id: habit.id,
+      userId: habit.userId,
+      title: title.trim(),
+      description: description?.trim(),
+      categoryId: habit.categoryId,
+      colorHex: colorHex ?? habit.colorHex,
+      frequency: frequency ?? habit.frequency,
+      targetPerPeriod: habit.targetPerPeriod,
+      selectedWeekdays: selectedWeekdays,
+      selectedMonthDates: selectedMonthDates,
+      targetCount: targetCount,
+      isArchived: habit.isArchived,
+      status: habit.status,
+      startDate: effectiveStart,
+      endDate: endDate,
+      streakCount: habit.streakCount,
+      lastCompletedAt: habit.lastCompletedAt,
+      lastCompletedWindowIndex: habit.lastCompletedWindowIndex,
+      currentPeriodCompletionCount: habit.currentPeriodCompletionCount,
+      createdAt: habit.createdAt,
+      updatedAt: DateTime.now(),
+    );
+
+    final result =
+        await _ref.read(habitRepositoryProvider).updateHabit(updated);
+    return result.fold(
+      (failure) => failure.message,
+      (_) {
+        _invalidateHabits(habit.userId);
+        return null;
+      },
+    );
+  }
+
   Future<String?> deleteHabit(HabitEntity habit) async {
     final result = await _ref.read(habitRepositoryProvider).deleteHabit(
           userId: habit.userId,
