@@ -91,3 +91,102 @@ final singlePostProvider = StreamProvider.family<List<HabitPostEntity>,
       )
       .map((posts) => posts.where((post) => post.id == params.postId).toList());
 });
+
+class SuggestedConnection {
+  const SuggestedConnection({
+    required this.user,
+    required this.followedByCount,
+    required this.followedByNames,
+  });
+
+  final UserEntity user;
+  final int followedByCount;
+  final List<String> followedByNames;
+}
+
+final suggestedConnectionsProvider =
+    StreamProvider.family<List<SuggestedConnection>, String>((ref, userId) {
+  return ref
+      .watch(socialRepositoryProvider)
+      .watchFollowing(userId)
+      .asyncMap((following) async {
+    if (following.isEmpty) {
+      return <SuggestedConnection>[];
+    }
+
+    final followedUserIds = following.map((f) => f.followingId).toList();
+    final followedIdsSet = followedUserIds.toSet();
+
+    // Fetch following lists for all followed users
+    final followingOfFollowed = await Future.wait(
+      followedUserIds.map(
+        (followedUserId) =>
+            ref.read(socialRepositoryProvider).getFollowing(followedUserId),
+      ),
+    );
+
+    // Collect suggested user IDs with frequency
+    final Map<String, int> suggestionFrequency = {};
+    final Map<String, List<String>> suggestionFollowers = {};
+
+    for (int i = 0; i < followingOfFollowed.length; i++) {
+      final result = followingOfFollowed[i];
+      final followedUserName = following[i].followingName ?? 'User';
+
+      result.fold(
+        (_) {},
+        (follows) {
+          for (final follow in follows) {
+            final targetId = follow.followingId;
+            // Skip if it's the current user or already followed
+            if (targetId == userId || followedIdsSet.contains(targetId)) {
+              continue;
+            }
+            suggestionFrequency[targetId] =
+                (suggestionFrequency[targetId] ?? 0) + 1;
+            suggestionFollowers.putIfAbsent(targetId, () => []);
+            suggestionFollowers[targetId]!.add(followedUserName);
+          }
+        },
+      );
+    }
+
+    if (suggestionFrequency.isEmpty) {
+      return <SuggestedConnection>[];
+    }
+
+    // Sort by frequency (highest first)
+    final sortedSuggestions = suggestionFrequency.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    // Take top 10 suggestions
+    final topSuggestions = sortedSuggestions.take(10).toList();
+
+    // Fetch user profiles for suggested users
+    final suggestedUsers = await Future.wait(
+      topSuggestions.map(
+        (entry) => ref.read(socialRepositoryProvider).getUserProfile(entry.key),
+      ),
+    );
+
+    final connections = <SuggestedConnection>[];
+    for (int i = 0; i < suggestedUsers.length; i++) {
+      final result = suggestedUsers[i];
+      final userId = topSuggestions[i].key;
+      result.fold(
+        (_) {},
+        (user) {
+          if (user != null) {
+            connections.add(SuggestedConnection(
+              user: user,
+              followedByCount: suggestionFrequency[userId]!,
+              followedByNames: suggestionFollowers[userId]!,
+            ));
+          }
+        },
+      );
+    }
+
+    return connections;
+  });
+});

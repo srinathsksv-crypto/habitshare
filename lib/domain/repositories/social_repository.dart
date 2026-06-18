@@ -140,4 +140,16 @@ abstract class ISocialRepository {
   });
 
   Future<Either<Failure, void>> markAllNotificationsRead(String userId);
+
+  Future<Either<Failure, void>> deletePost({
+    required String userId,
+    required String postId,
+  });
+
+  Future<Either<Failure, void>> createShares({
+    required String senderId,
+    required String senderName,
+    required List<String> receiverIds,
+    required String postId,
+  });
 }

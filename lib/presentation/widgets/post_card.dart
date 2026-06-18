@@ -5,6 +5,8 @@ import 'package:habitshare/core/extensions/context_extensions.dart';
 import 'package:habitshare/domain/entities/habit_post_entity.dart';
 import 'package:habitshare/domain/entities/user_entity.dart';
 import 'package:habitshare/presentation/controllers/social_controller.dart';
+import 'package:habitshare/presentation/providers/social_provider.dart';
+import 'package:habitshare/presentation/screens/share_post_screen.dart';
 import 'package:habitshare/presentation/widgets/post_comments_sheet.dart';
 import 'package:habitshare/presentation/widgets/profile_avatar.dart';
 import 'package:habitshare/presentation/screens/user_profile_sheet.dart';
@@ -50,6 +52,48 @@ class _PostCardState extends ConsumerState<PostCard> {
         post: widget.post,
         currentUser: widget.currentUser,
       ),
+    );
+  }
+
+  Future<void> _deletePost() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Post?'),
+        content: const Text('This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final error = await ref.read(socialRepositoryProvider).deletePost(
+          userId: widget.post.userId,
+          postId: widget.post.id,
+        );
+
+    if (!mounted) return;
+
+    error.fold(
+      (failure) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete post: ${failure.message}')),
+        );
+      },
+      (_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Post deleted successfully')),
+        );
+      },
     );
   }
 
@@ -109,7 +153,36 @@ class _PostCardState extends ConsumerState<PostCard> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Icon(Icons.track_changes, color: theme.colorScheme.primary),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onSelected: (value) {
+                    if (value == 'share') {
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (_) => SharePostScreen(
+                            currentUser: widget.currentUser,
+                            postId: widget.post.id,
+                          ),
+                        ),
+                      );
+                    } else if (value == 'delete') {
+                      _deletePost();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem<String>(
+                      value: 'share',
+                      child: Text('Share'),
+                    ),
+                    if (widget.currentUser.id == widget.post.userId)
+                      const PopupMenuItem<String>(
+                        value: 'delete',
+                        child: Text('Delete'),
+                      ),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -180,4 +253,3 @@ class _PostCardState extends ConsumerState<PostCard> {
     );
   }
 }
-

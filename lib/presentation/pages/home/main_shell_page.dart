@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:habitshare/presentation/controllers/auth_controller.dart';
 import 'package:habitshare/presentation/pages/home/tabs/feed_tab.dart';
+import 'package:habitshare/presentation/pages/home/tabs/find_people_tab.dart';
 import 'package:habitshare/presentation/pages/home/tabs/habits_tab.dart';
 import 'package:habitshare/presentation/pages/home/tabs/profile_tab.dart';
 import 'package:habitshare/presentation/providers/auth_provider.dart';
@@ -57,6 +58,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> {
             postId: widget.postId,
             postOwnerId: widget.postOwnerId,
           ),
+          FindPeopleTab(user: user),
           ProfileTab(user: user),
         ];
 
@@ -80,6 +82,11 @@ class _MainShellPageState extends ConsumerState<MainShellPage> {
                 icon: Icon(Icons.dynamic_feed_outlined),
                 selectedIcon: Icon(Icons.dynamic_feed),
                 label: 'Feed',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.search),
+                selectedIcon: Icon(Icons.search),
+                label: 'Find People',
               ),
               NavigationDestination(
                 icon: Icon(Icons.person_outline),

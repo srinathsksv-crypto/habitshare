@@ -13,7 +13,6 @@ import 'package:habitshare/presentation/providers/social_provider.dart';
 import 'package:habitshare/presentation/widgets/app_notification_button.dart';
 import 'package:habitshare/presentation/widgets/user_connections_sheet.dart';
 import 'package:habitshare/presentation/widgets/profile_avatar.dart';
-import 'package:habitshare/presentation/widgets/user_tile.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ProfileTab extends ConsumerStatefulWidget {
@@ -26,24 +25,12 @@ class ProfileTab extends ConsumerStatefulWidget {
 }
 
 class _ProfileTabState extends ConsumerState<ProfileTab> {
-  final _searchController = TextEditingController();
-  String _query = '';
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final followersCount = ref.watch(followersCountProvider(widget.user.id));
     final followingCount = ref.watch(followingCountProvider(widget.user.id));
     final pendingRequests = ref.watch(
       pendingFollowRequestsProvider(widget.user.id),
-    );
-    final searchResults = ref.watch(
-      userSearchProvider((query: _query, userId: widget.user.id)),
     );
 
     return Scaffold(
@@ -117,57 +104,6 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
             loading: () => const SizedBox.shrink(),
             error: (_, __) => const SizedBox.shrink(),
           ),
-          Text(
-            'Find people',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Search by name...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _query.isNotEmpty
-                  ? IconButton(
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() => _query = '');
-                      },
-                      icon: const Icon(Icons.clear),
-                    )
-                  : null,
-            ),
-            onChanged: (value) => setState(() => _query = value),
-          ),
-          const SizedBox(height: 8),
-          searchResults.when(
-            data: (users) {
-              if (_query.trim().length < 2) {
-                return const SizedBox.shrink();
-              }
-              if (users.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Text('No users found'),
-                );
-              }
-              return Column(
-                children: users
-                    .map(
-                      (target) => _SearchUserTile(
-                        currentUser: widget.user,
-                        target: target,
-                      ),
-                    )
-                    .toList(),
-              );
-            },
-            loading: () => const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-            error: (_, __) => const Text('Search failed'),
-          ),
         ],
       ),
     );
@@ -206,7 +142,7 @@ class _ProfileHeaderState extends ConsumerState<_ProfileHeader> {
     setState(() => _uploadingPhoto = true);
     final currentProfile = ref.read(userProfileProvider(widget.user.id)).value;
     final oldPhotoUrl = currentProfile?.photoUrl ?? widget.user.photoUrl;
-    
+
     final error = await ref.read(socialControllerProvider).uploadProfilePhoto(
           userId: widget.user.id,
           file: File(picked.path),
@@ -489,67 +425,3 @@ class _FollowRequestTile extends ConsumerWidget {
     );
   }
 }
-
-class _SearchUserTile extends ConsumerWidget {
-  const _SearchUserTile({
-    required this.currentUser,
-    required this.target,
-  });
-
-  final UserEntity currentUser;
-  final UserEntity target;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final relationship = ref.watch(
-      followRelationshipProvider(
-        (followerId: currentUser.id, followingId: target.id),
-      ),
-    );
-
-    return UserTile(
-      user: target,
-      trailing: relationship.when(
-        data: (entity) {
-          if (entity == null) {
-            return FilledButton.tonal(
-              onPressed: () async {
-                final error =
-                    await ref.read(socialControllerProvider).sendFollowRequest(
-                          followerId: currentUser.id,
-                          followingId: target.id,
-                        );
-                if (context.mounted && error != null) {
-                  context.showSnackBar(error, isError: true);
-                }
-              },
-              child: const Text('Follow'),
-            );
-          }
-          if (entity.status == FollowStatus.pending) {
-            return const Chip(label: Text('Requested'));
-          }
-          return OutlinedButton(
-            onPressed: () async {
-              final error = await ref.read(socialControllerProvider).unfollow(
-                    followerId: currentUser.id,
-                    followingId: target.id,
-                  );
-              if (context.mounted && error != null) {
-                context.showSnackBar(error, isError: true);
-              }
-            },
-            child: const Text('Unfollow'),
-          );
-        },
-        loading: () => const SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-        error: (_, __) => const SizedBox.shrink(),
-      ),
-    );
-  }
-}
-

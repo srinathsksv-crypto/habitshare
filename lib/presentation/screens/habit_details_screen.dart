@@ -154,6 +154,17 @@ class _HabitDetailsScreenState extends ConsumerState<HabitDetailsScreen> {
             label: 'Frequency',
             value: '${_habit.targetPerPeriod}x ${_habit.frequency.name}',
           ),
+          if (_habit.frequency == HabitFrequency.timesPerWeek) ...[
+            _InfoRow(
+              label: 'Target',
+              value: '${_habit.targetCount} times per week',
+            ),
+            _InfoRow(
+              label: 'Progress',
+              value:
+                  '${_habit.currentPeriodCompletionCount}/${_habit.targetCount} this week',
+            ),
+          ],
           _InfoRow(label: 'Start', value: AppDateUtils.formatDay(start)),
           if (end != null)
             _InfoRow(label: 'End', value: AppDateUtils.formatDay(end)),

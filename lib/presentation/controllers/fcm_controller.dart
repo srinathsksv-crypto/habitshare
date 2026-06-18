@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:habitshare/config/constants/app_constants.dart';
 import 'package:habitshare/domain/repositories/fcm_token_repository.dart';
 import 'package:habitshare/presentation/providers/fcm_provider.dart';
 
@@ -54,7 +55,7 @@ class FCMController {
   /// Subscribe to user-specific notifications
   Future<void> subscribeToUserNotifications(String userId) async {
     try {
-      await _fcmRepository.subscribeToTopic('user_$userId');
+      await _fcmRepository.subscribeToTopic(AppConstants.fcmUserTopic(userId));
       print('Subscribed to user notifications');
     } catch (e) {
       print('Error subscribing to user notifications: $e');
@@ -64,7 +65,7 @@ class FCMController {
   /// Unsubscribe from user-specific notifications
   Future<void> unsubscribeFromUserNotifications(String userId) async {
     try {
-      await _fcmRepository.unsubscribeFromTopic('user_$userId');
+      await _fcmRepository.unsubscribeFromTopic(AppConstants.fcmUserTopic(userId));
       print('Unsubscribed from user notifications');
     } catch (e) {
       print('Error unsubscribing from user notifications: $e');

@@ -1,16 +1,21 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
 import 'package:habitshare/config/router/app_router.dart';
 import 'package:habitshare/data/datasources/remote/fcm_datasource.dart';
+import 'package:habitshare/firebase_options.dart';
 import 'package:habitshare/presentation/screens/notifications_screen.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Handle background messages
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   if (kDebugMode) {
     print('Handling background message: ${message.messageId}');
   }
@@ -29,8 +34,16 @@ class FCMMessageHandler {
     // Initialize local notifications
     await _initializeLocalNotifications();
 
-    // Request notification permissions
+    // iOS + cross-platform FCM permission prompt
     await _fcmDataSource.requestPermissions();
+
+    // Android 13+ requires a runtime POST_NOTIFICATIONS grant on physical devices.
+    if (Platform.isAndroid) {
+      await _localNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
+    }
 
     // Register background message handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);

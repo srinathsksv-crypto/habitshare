@@ -404,4 +404,37 @@ class SocialRepositoryImpl implements ISocialRepository {
       return Left(mapExceptionToFailure(e));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> deletePost({
+    required String userId,
+    required String postId,
+  }) async {
+    try {
+      await _remote.deletePost(userId: userId, postId: postId);
+      return const Right(null);
+    } catch (e) {
+      return Left(mapExceptionToFailure(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> createShares({
+    required String senderId,
+    required String senderName,
+    required List<String> receiverIds,
+    required String postId,
+  }) async {
+    try {
+      await _remote.createShares(
+        senderId: senderId,
+        senderName: senderName,
+        receiverIds: receiverIds,
+        postId: postId,
+      );
+      return const Right(null);
+    } catch (e) {
+      return Left(mapExceptionToFailure(e));
+    }
+  }
 }

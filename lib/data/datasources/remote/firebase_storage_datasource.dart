@@ -96,4 +96,23 @@ class FirebaseStorageDataSource {
       } catch (_) {}
     }
   }
+
+  Future<void> deletePostImage(String postId) async {
+    try {
+      // Try to delete common image extensions for the post
+      final extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+      for (final ext in extensions) {
+        try {
+          await _storage.ref().child('posts/$postId.$ext').delete();
+        } catch (_) {
+          // Ignore if file doesn't exist
+        }
+      }
+    } on FirebaseException catch (e) {
+      throw ServerException(
+        e.message ?? 'Failed to delete post image',
+        code: e.code,
+      );
+    }
+  }
 }

@@ -44,6 +44,9 @@ class FirestorePaths {
   CollectionReference<Map<String, dynamic>> following(String userId) =>
       user(userId).collection(AppConstants.followingSubcollection);
 
+  CollectionReference<Map<String, dynamic>> shares(String userId) =>
+      user(userId).collection(AppConstants.sharesSubcollection);
+
   DocumentReference<Map<String, dynamic>> privateProfile(String userId) => user(
         userId,
       )

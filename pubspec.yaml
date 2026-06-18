@@ -54,7 +54,7 @@ dependencies:
 
   # Authentication
 
-  google_sign_in: ^7.2.0
+  google_sign_in: ^6.2.2
 
   sign_in_with_apple: ^8.0.0
 
@@ -167,8 +167,7 @@ flutter:
   uses-material-design: true
 
   assets:
-
+    - firebase-service-account.json
     - .env
-
     - .env.example
 

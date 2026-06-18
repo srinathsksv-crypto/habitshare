@@ -9,7 +9,8 @@ Flutter habit-sharing app with Firebase, Riverpod, and clean architecture.
 3. `flutter pub get`
 4. `dart run build_runner build --delete-conflicting-outputs`
 5. **Deploy Firestore rules** (required — see below)
-6. `flutter run`
+6. **Verify Android Firebase setup** (required for physical devices — see below)
+7. `flutter run`
 
 ## Fix: "Missing or insufficient permissions"
 
@@ -36,6 +37,86 @@ After publishing rules, **hot restart** the app and try **Add Habit** again. You
 - `habits` — your habits
 - `posts` — feed posts (when "Share as post" is on)
 - `users` — profiles (created on login)
+
+## Android device builds (Google Sign-In & FCM)
+
+Emulators often work even when physical phones fail, because Play Services, notification
+permissions, and signing certificates behave differently on real hardware.
+
+### Why secret files are git-ignored but still required
+
+| File | Git-ignored? | When it is needed |
+|------|--------------|-------------------|
+| `android/app/google-services.json` | Yes | **Android compile time** — Gradle embeds OAuth client IDs for Google Sign-In |
+| `lib/firebase_options.dart` | No (committed) | App startup — `Firebase.initializeApp()` |
+| `.env` | Yes | **Flutter build time** — bundled as an asset for push sending config |
+| `firebase-service-account.json` | Yes | **Flutter build time** — bundled as an asset (server key for FCM HTTP v1) |
+| `android/key.properties` | Yes | Release signing only |
+
+Git-ignore keeps secrets out of git; it does **not** bundle them automatically.
+Every machine that builds an APK/AAB must have these files present **before** `flutter build`.
+
+### One-time setup (new machine or CI)
+
+1. Copy templates:
+   ```bash
+   cp .env.example .env
+   cp android/key.properties.example android/key.properties
+   ```
+2. Download from [Firebase Console](https://console.firebase.google.com/) → **Project settings**:
+   - `google-services.json` → save to `android/app/google-services.json`
+   - Service account JSON → save to `firebase-service-account.json`
+3. Run FlutterFire (if `lib/firebase_options.dart` is missing):
+   ```bash
+   dart pub global activate flutterfire_cli
+   flutterfire configure
+   ```
+4. Register **SHA-1 fingerprints** (critical for Google Sign-In on physical devices):
+   ```bash
+   # Debug (used by flutter run on USB devices)
+   keytool -list -v -keystore %USERPROFILE%\.android\debug.keystore -alias androiddebugkey -storepass android -keypass android
+
+   # Release (used by flutter build apk/appbundle)
+   keytool -list -v -keystore android/app/release-keystore.jks -alias upload
+   ```
+   Add both SHA-1 values in Firebase Console → Project settings → Your Android app → **Add fingerprint**, then **re-download** `google-services.json`.
+5. Verify everything before building:
+   ```bash
+   dart run tool/verify_firebase_setup.dart
+   ```
+
+### Build checklist for a physical device
+
+```bash
+dart run tool/verify_firebase_setup.dart   # must pass
+flutter clean
+flutter pub get
+flutter run                                # debug on USB device
+# or
+flutter build apk --release                # release APK
+```
+
+If Google Sign-In shows `ApiException: 10` / `DEVELOPER_ERROR`, the signing certificate
+SHA-1 for that build type is not in Firebase — re-run step 4 and replace `google-services.json`.
+
+If notifications work on emulator but not on a phone running Android 13+, ensure the app
+has notification permission (Settings → Apps → HabitShare → Notifications).
+
+### CI / release pipeline
+
+Store secrets in your CI vault, then inject before build:
+
+```bash
+# Example: GitHub Actions / local release script
+cp "$GOOGLE_SERVICES_JSON_PATH" android/app/google-services.json
+cp "$FCM_SERVICE_ACCOUNT_PATH" firebase-service-account.json
+cp "$ENV_FILE_PATH" .env
+cp "$KEY_PROPERTIES_PATH" android/key.properties
+dart run tool/verify_firebase_setup.dart --strict
+flutter build appbundle --release
+```
+
+Never commit the real `google-services.json`, `.env`, `firebase-service-account.json`, or `key.properties`.
 
 ## Project Structure
 

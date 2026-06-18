@@ -341,17 +341,6 @@ class FirestoreDataSource {
       final habitRef = _paths.habits(userId).doc(habitId);
       batch.delete(habitRef);
 
-      // Delete related posts
-      final postsSnapshot = await _paths
-          .posts(userId)
-          .where('habit_id', isEqualTo: habitId)
-          .get();
-      for (final doc in postsSnapshot.docs) {
-        batch.delete(doc.reference);
-        // Note: cloud functions or a recursive delete might be better if posts have subcollections (likes/comments),
-        // but batch deleting the document itself will hide it from the feed.
-      }
-
       // Delete related habit logs
       final logsSnapshot = await _paths
           .habitLogs(userId)
@@ -360,6 +349,9 @@ class FirestoreDataSource {
       for (final doc in logsSnapshot.docs) {
         batch.delete(doc.reference);
       }
+
+      // Note: Posts are NOT deleted to allow them to persist in the feed
+      // Posts should render correctly even when the original habit no longer exists
 
       await batch.commit();
     } on FirebaseException catch (e) {
@@ -695,6 +687,82 @@ class FirestoreDataSource {
     } on FirebaseException catch (e, stack) {
       AppLogger.error('createPost failed', e, stack);
       throw ServerException(e.message ?? 'Failed to create post', code: e.code);
+    }
+  }
+
+  Future<void> deletePost({
+    required String userId,
+    required String postId,
+  }) async {
+    try {
+      final authUid = _requireAuthUid();
+      if (authUid != userId) {
+        throw const AuthException(
+            'Authenticated user mismatch while deleting post');
+      }
+
+      // Get the post document to check for image URL
+      final postDoc = await _paths.post(userId: userId, postId: postId).get();
+      final postData = postDoc.data();
+      final imageUrl = postData?['image_url'] as String?;
+
+      // Delete the post document from Firestore
+      await _paths.post(userId: userId, postId: postId).delete();
+
+      // Delete the image from Firebase Storage if it exists
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        // Try to delete common image extensions for the post
+        final extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        for (final ext in extensions) {
+          try {
+            await _storage.ref().child('posts/$postId.$ext').delete();
+          } catch (_) {
+            // Ignore if file doesn't exist
+          }
+        }
+      }
+
+      AppLogger.info('Post deleted: $postId for user $userId');
+    } on FirebaseException catch (e, stack) {
+      AppLogger.error('deletePost failed', e, stack);
+      throw ServerException(e.message ?? 'Failed to delete post', code: e.code);
+    }
+  }
+
+  Future<void> createShares({
+    required String senderId,
+    required String senderName,
+    required List<String> receiverIds,
+    required String postId,
+  }) async {
+    try {
+      final authUid = _requireAuthUid();
+      if (authUid != senderId) {
+        throw const AuthException(
+            'Authenticated user mismatch while creating shares');
+      }
+
+      final batch = _firestore.batch();
+      final createdAt = DateTime.now();
+
+      for (final receiverId in receiverIds) {
+        final docRef = _paths.shares(receiverId).doc();
+        final data = {
+          'sender_id': senderId,
+          'sender_name': senderName,
+          'receiver_id': receiverId,
+          'post_id': postId,
+          'created_at': createdAt.toIso8601String(),
+        };
+        batch.set(docRef, data);
+      }
+
+      await batch.commit();
+      AppLogger.info('Created ${receiverIds.length} shares for post $postId');
+    } on FirebaseException catch (e, stack) {
+      AppLogger.error('createShares failed', e, stack);
+      throw ServerException(e.message ?? 'Failed to create shares',
+          code: e.code);
     }
   }
 

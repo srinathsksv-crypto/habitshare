@@ -80,11 +80,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isGoogleLoading = true);
-
-    final result = await ref.read(authRepositoryProvider).signInWithGoogle();
-
-    if (mounted) {
-      setState(() => _isGoogleLoading = false);
+    try {
+      final result = await ref.read(authRepositoryProvider).signInWithGoogle();
+      if (!mounted) {
+        return;
+      }
       result.fold(
         (failure) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -93,6 +93,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         },
         _handleAuthSuccess,
       );
+    } finally {
+      if (mounted) {
+        setState(() => _isGoogleLoading = false);
+      }
     }
   }
 

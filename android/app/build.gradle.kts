@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -7,6 +10,7 @@ plugins {
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
 
 android {
     namespace = "com.example.habitshare"
@@ -37,11 +41,27 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            val keystoreProperties = Properties()
+            val keystorePropertiesFile = rootProject.file("key.properties")
+            if (keystorePropertiesFile.exists()) {
+                keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+            }
+            keyAlias = keystoreProperties.getProperty("keyAlias")
+            keyPassword = keystoreProperties.getProperty("keyPassword")
+            val storeFilePath = keystoreProperties.getProperty("storeFile")
+            if (storeFilePath != null) {
+                storeFile = file(storeFilePath)
+            }
+            storePassword = keystoreProperties.getProperty("storePassword")
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }
@@ -55,4 +75,38 @@ dependencies {
 }
 flutter {
     source = "../.."
+}
+
+// Fail fast when Firebase Android config is missing from the build machine.
+// google-services.json is git-ignored but MUST exist locally/CI before compiling.
+tasks.named("preBuild") {
+    doFirst {
+        val googleServices = file("google-services.json")
+        if (!googleServices.exists()) {
+            throw GradleException(
+                """
+                |
+                |Missing android/app/google-services.json
+                |
+                |This file is required for Google Sign-In and FCM on physical Android devices.
+                |It is git-ignored for security — copy it from Firebase Console or run:
+                |  dart run tool/verify_firebase_setup.dart
+                |
+                """.trimMargin(),
+            )
+        }
+
+        val packageName = "com.example.habitshare"
+        val jsonText = googleServices.readText()
+        if (!jsonText.contains("\"package_name\": \"$packageName\"")) {
+            throw GradleException(
+                """
+                |
+                |google-services.json package_name does not match applicationId ($packageName).
+                |Re-download the file from Firebase Console for the correct Android app.
+                |
+                """.trimMargin(),
+            )
+        }
+    }
 }

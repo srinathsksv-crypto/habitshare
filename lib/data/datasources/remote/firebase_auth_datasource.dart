@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:habitshare/core/errors/exceptions.dart';
 import 'package:habitshare/data/models/user_model.dart';
@@ -7,12 +8,14 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 class FirebaseAuthDataSource {
   FirebaseAuthDataSource({
     FirebaseAuth? firebaseAuth,
-    GoogleSignIn? googleSignIn,
+    required GoogleSignIn googleSignIn,
   })  : _auth = firebaseAuth ?? FirebaseAuth.instance,
         _googleSignIn = googleSignIn;
 
+  static const Duration _googleSignInTimeout = Duration(seconds: 60);
+
   final FirebaseAuth _auth;
-  final GoogleSignIn? _googleSignIn;
+  final GoogleSignIn _googleSignIn;
 
   Stream<UserModel?> watchAuthState() {
     return _auth.authStateChanges().map(
@@ -72,24 +75,104 @@ class FirebaseAuthDataSource {
 
   Future<UserModel> signInWithGoogle() async {
     try {
-      final gSign = _googleSignIn ?? GoogleSignIn.instance;
-      await gSign.initialize();
-      final googleUser = await gSign.authenticate();
-      final googleAuth = googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        idToken: googleAuth.idToken,
+      // Clear any stale Google session so the account picker always appears.
+      await _googleSignIn.signOut();
+
+      final googleUser = await _googleSignIn.signIn().timeout(
+        _googleSignInTimeout,
+        onTimeout: () {
+          throw const AuthException(
+            'Google Sign-In timed out. Check your connection, then try again.',
+            code: 'timeout',
+          );
+        },
       );
-      final userCredential = await _auth.signInWithCredential(credential);
+
+      if (googleUser == null) {
+        throw const AuthException(
+          'Google Sign-In was cancelled',
+          code: 'cancelled',
+        );
+      }
+
+      final googleAuth = await googleUser.authentication.timeout(
+        _googleSignInTimeout,
+        onTimeout: () {
+          throw const AuthException(
+            'Google Sign-In timed out while fetching credentials.',
+            code: 'timeout',
+          );
+        },
+      );
+
+      final idToken = googleAuth.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw const AuthException(
+          'Google Sign-In did not return an ID token. Re-download '
+          'google-services.json after adding SHA-1 and SHA-256 in Firebase, '
+          'then rebuild the app.',
+          code: 'missing-id-token',
+        );
+      }
+
+      final userCredential = await _auth.signInWithCredential(
+        GoogleAuthProvider.credential(
+          idToken: idToken,
+          accessToken: googleAuth.accessToken,
+        ),
+      );
       final user = userCredential.user;
       if (user == null) {
         throw const AuthException('Google sign in failed');
       }
       return UserModel.fromFirebaseUser(user);
+    } on AuthException {
+      rethrow;
+    } on PlatformException catch (e) {
+      throw _mapGooglePlatformException(e);
     } on FirebaseAuthException catch (e) {
       throw AuthException(e.message ?? 'Google sign in failed', code: e.code);
     } catch (e) {
+      final message = e.toString();
+      if (message.contains('DEVELOPER_ERROR') ||
+          message.contains('ApiException: 10')) {
+        throw const AuthException(
+          'Google Sign-In configuration error. Add debug and release SHA-1 '
+          'and SHA-256 in Firebase Console, re-download google-services.json, '
+          'uninstall the app, and rebuild.',
+          code: 'developer-error',
+        );
+      }
       throw AuthException('Google Sign-In failed: $e');
     }
+  }
+
+  AuthException _mapGooglePlatformException(PlatformException e) {
+    final message = e.message ?? e.toString();
+    final code = e.code;
+
+    if (code == 'sign_in_canceled' || message.contains('canceled')) {
+      return const AuthException(
+        'Google Sign-In was cancelled',
+        code: 'cancelled',
+      );
+    }
+
+    if (message.contains('DEVELOPER_ERROR') ||
+        message.contains('ApiException: 10') ||
+        code == 'sign_in_failed') {
+      return const AuthException(
+        'Google Sign-In configuration error. Add debug and release SHA-1 '
+        'and SHA-256 in Firebase Console, re-download google-services.json, '
+        'uninstall the app, and rebuild.',
+        code: 'developer-error',
+      );
+    }
+
+    return AuthException(
+      'Google Sign-In failed: ${message.isEmpty ? code : message}',
+      code: code,
+    );
   }
 
   Future<UserModel> signInWithApple() async {
@@ -116,14 +199,10 @@ class FirebaseAuthDataSource {
   }
 
   Future<void> signOut() async {
-    final futures = <Future<void>>[_auth.signOut()];
-    try {
-      final gSign = _googleSignIn ?? GoogleSignIn.instance;
-      futures.add(gSign.signOut());
-    } catch (_) {
-      // Ignore Google Sign-In initialization/sign-out errors if client ID is not configured
-    }
-    await Future.wait(futures);
+    await Future.wait([
+      _auth.signOut(),
+      _googleSignIn.signOut(),
+    ]);
   }
 
   Future<UserModel?> getCurrentUser() async {

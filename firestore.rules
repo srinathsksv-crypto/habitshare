@@ -52,7 +52,21 @@ service cloud.firestore {
 
       }
 
+      match /shares/{shareId} {
 
+  // Receiver can read received shares
+  allow read: if isOwner(userId);
+
+  // Any authenticated user can share a post
+  allow create: if isSignedIn()
+    && request.resource.data.sender_id == request.auth.uid;
+
+  // Receiver can delete received shares
+  allow delete: if isOwner(userId);
+
+  // Prevent editing shares after creation
+  allow update: if false;
+}
 
       match /habit_logs/{logId} {
 
@@ -211,6 +225,18 @@ service cloud.firestore {
       match /fcm_tokens/{tokenId} {
 
         allow read: if isOwner(userId);
+
+        allow write: if isOwner(userId);
+
+      }
+
+
+
+      match /settings/{docId} {
+
+        // Any signed-in user can read notification prefs (needed for push filtering).
+
+        allow read: if isSignedIn();
 
         allow write: if isOwner(userId);
 

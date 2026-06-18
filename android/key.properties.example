@@ -1,0 +1,10 @@
+# Copy to android/key.properties (git-ignored) for release signing.
+# Generate a keystore first, then register its SHA-1 in Firebase Console.
+#
+#   keytool -genkey -v -keystore android/app/release-keystore.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#
+storePassword=your-store-password
+keyPassword=your-key-password
+keyAlias=upload
+storeFile=release-keystore.jks

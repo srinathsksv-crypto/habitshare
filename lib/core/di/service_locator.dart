@@ -1,4 +1,6 @@
 import 'package:get_it/get_it.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:habitshare/core/bootstrap/google_sign_in_bootstrap.dart';
 import 'package:habitshare/data/datasources/local/csv_datasource.dart';
 import 'package:habitshare/data/datasources/local/local_database.dart';
 import 'package:habitshare/data/datasources/remote/fcm_datasource.dart';
@@ -28,7 +30,10 @@ final sl = GetIt.instance;
 
 Future<void> configureDependencies() async {
   sl
-    ..registerLazySingleton(FirebaseAuthDataSource.new)
+    ..registerLazySingleton<GoogleSignIn>(createGoogleSignIn)
+    ..registerLazySingleton(
+      () => FirebaseAuthDataSource(googleSignIn: sl<GoogleSignIn>()),
+    )
     ..registerLazySingleton(FirebaseStorageDataSource.new)
     ..registerLazySingleton(FCMDataSource.new)
     ..registerLazySingleton(LocalDatabaseDataSource.new)
@@ -45,7 +50,6 @@ Future<void> configureDependencies() async {
   // Set up callbacks for PushNotificationService
   final pushService = sl<PushNotificationService>();
   final firestore = sl<FirestoreDataSource>();
-  pushService.getUserFCMTokens = firestore.getUserFCMTokens;
   pushService.getNotificationSettings = firestore.getNotificationSettings;
 
   sl
