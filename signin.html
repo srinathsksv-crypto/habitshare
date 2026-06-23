@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Login - Premium Experience</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&amp;family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+    body {
+        background-color: #000000;
+        color: #f5f5f5;
+        overflow-x: hidden;
+        min-height: max(884px, 100dvh);
+    }
+    
+    .glass-card {
+        background: rgba(10, 10, 10, 0.8);
+        backdrop-filter: blur(24px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .glow-effect {
+        position: fixed;
+        top: -15%;
+        right: -10%;
+        width: 700px;
+        height: 700px;
+        background: radial-gradient(circle, rgba(187, 134, 252, 0.1) 0%, rgba(0, 0, 0, 0) 70%);
+        z-index: -1;
+        pointer-events: none;
+    }
+
+    .bottom-glow {
+        position: fixed;
+        bottom: -10%;
+        left: -5%;
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle, rgba(70, 245, 224, 0.05) 0%, rgba(0, 0, 0, 0) 70%);
+        z-index: -1;
+        pointer-events: none;
+    }
+
+    .input-focus-animate {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .input-focus-animate:focus-within {
+        border-bottom-width: 2px;
+        border-bottom-color: #bb86fc;
+    }
+
+    .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+</style>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "primary": "#dab9ff",
+            "primary-container": "#bb86fc",
+            "secondary": "#46f5e0",
+            "background": "#131313",
+            "surface": "#131313",
+            "on-surface": "#e2e2e2",
+            "on-surface-variant": "#cdc3d4",
+            "outline-variant": "#4b4452",
+            "outline": "#978d9d",
+            "surface-variant": "#353535",
+            "surface-container-lowest": "#0e0e0e",
+            "surface-container-high": "#2a2a2a",
+            "on-primary-container": "#4c0f89"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "base": "8px",
+            "md": "16px",
+            "lg": "24px",
+            "margin-desktop": "64px",
+            "gutter": "16px",
+            "sm": "8px",
+            "margin-mobile": "20px",
+            "xl": "32px",
+            "xs": "4px"
+          },
+          "fontFamily": {
+            "display-md": ["Outfit", "sans-serif"],
+            "headline-lg": ["Outfit", "sans-serif"],
+            "headline-lg-mobile": ["Outfit", "sans-serif"],
+            "title-lg": ["Outfit", "sans-serif"],
+            "body-md": ["Inter", "sans-serif"],
+            "body-lg": ["Inter", "sans-serif"],
+            "label-lg": ["Inter", "sans-serif"],
+            "label-sm": ["Inter", "sans-serif"]
+          },
+          "fontSize": {
+            "headline-md": ["28px", {"lineHeight": "36px", "fontWeight": "500"}],
+            "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+            "title-lg": ["22px", {"lineHeight": "28px", "fontWeight": "500"}],
+            "label-sm": ["11px", {"lineHeight": "16px", "letterSpacing": "0.08em", "fontWeight": "500"}],
+            "headline-sm": ["24px", {"lineHeight": "32px", "fontWeight": "500"}],
+            "display-md": ["45px", {"lineHeight": "52px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+            "body-lg": ["16px", {"lineHeight": "24px", "letterSpacing": "0.01em", "fontWeight": "400"}],
+            "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+            "display-lg": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+            "label-lg": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+            "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "600"}]
+          }
+        },
+      },
+    }
+</script>
+</head>
+<body class="flex flex-col min-h-screen font-body-md text-body-md antialiased bg-background">
+<div class="glow-effect"></div>
+<div class="bottom-glow"></div>
+<!-- Dot Grid Overlay -->
+<div class="fixed inset-0 -z-20 pointer-events-none opacity-20">
+<div class="absolute inset-0" style="background-image: radial-gradient(#333 0.5px, transparent 0.5px); background-size: 48px 48px;"></div>
+</div>
+<main class="flex-grow flex items-center justify-center px-margin-mobile py-xl md:px-margin-desktop">
+<div class="w-full max-w-[480px]">
+<header class="text-center mb-xl">
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary-container">Welcome back</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mt-md">Log in to continue your journey.</p>
+</header>
+<div class="glass-card p-lg rounded-[16px] shadow-2xl bg-surface-container-lowest">
+<form class="space-y-lg" onsubmit="event.preventDefault()">
+<button class="w-full border border-outline-variant text-on-surface font-label-lg text-label-lg py-md rounded-xl active:scale-[0.98] transition-all duration-200 hover:bg-surface-container-high flex items-center justify-center space-x-md group">
+<svg class="group-hover:scale-110 transition-transform" fill="none" height="20" viewbox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg">
+<path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path>
+<path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.26 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path>
+<path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"></path>
+<path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"></path>
+</svg>
+<span>Continue with Google</span>
+</button>
+<div class="flex items-center justify-center space-x-md py-md">
+<div class="h-[1px] bg-outline-variant flex-grow"></div>
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-widest">OR</span>
+<div class="h-[1px] bg-outline-variant flex-grow"></div>
+</div>
+<div class="flex flex-col space-y-xs">
+<label class="font-label-sm text-on-surface-variant px-1 group-focus-within:text-primary transition-colors" for="email">Email Address</label>
+<div class="flex items-center border-b border-outline-variant py-sm group input-focus-animate">
+<span class="material-symbols-outlined text-outline group-focus-within:text-primary transition-colors mr-md">mail</span>
+<input class="bg-transparent border-none focus:ring-0 w-full text-on-surface placeholder:text-surface-variant font-body-lg text-body-lg" id="email" placeholder="name@example.com" required="" type="email"/>
+</div>
+</div>
+<div class="flex flex-col space-y-xs">
+<label class="font-label-sm text-on-surface-variant px-1 group-focus-within:text-primary transition-colors" for="password">Password</label>
+<div class="flex items-center border-b border-outline-variant py-sm group input-focus-animate">
+<span class="material-symbols-outlined text-outline group-focus-within:text-primary transition-colors mr-md">lock</span>
+<input class="bg-transparent border-none focus:ring-0 w-full text-on-surface placeholder:text-surface-variant font-body-lg text-body-lg" id="password" placeholder="••••••••" required="" type="password"/>
+<button class="text-outline hover:text-primary transition-colors flex items-center" id="toggle-password-btn" type="button">
+<span class="material-symbols-outlined" id="visibility-icon">visibility</span>
+</button>
+</div>
+</div>
+<button class="w-full bg-primary-container text-on-primary-container font-label-lg text-label-lg py-md rounded-xl active:scale-[0.98] transition-all duration-200 hover:opacity-90 mt-md flex items-center justify-center space-x-sm" type="submit">
+<span>Continue</span>
+<span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+</form>
+</div>
+<footer class="text-center mt-xl">
+<p class="font-body-md text-body-md text-on-surface-variant">
+Don't have an account? 
+<a class="text-primary font-bold hover:underline ml-1" href="#">Sign up</a>
+</p>
+</footer>
+</div>
+</main>
+<script>
+    // Subtle parallax on glow
+    document.addEventListener('mousemove', (e) => {
+      const x = (e.clientX / window.innerWidth) - 0.5;
+      const y = (e.clientY / window.innerHeight) - 0.5;
+      
+      const glow = document.querySelector('.glow-effect');
+      if(glow) glow.style.transform = `translate(${x * 40}px, ${y * 40}px)`;
+      
+      const bottomGlow = document.querySelector('.bottom-glow');
+      if(bottomGlow) bottomGlow.style.transform = `translate(${-x * 30}px, ${-y * 30}px)`;
+    });
+
+    const passToggle = document.getElementById('toggle-password-btn');
+    const passInput = document.getElementById('password');
+    const icon = document.getElementById('visibility-icon');
+
+    passToggle.addEventListener('click', () => {
+      const type = passInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passInput.setAttribute('type', type);
+      icon.textContent = type === 'password' ? 'visibility' : 'visibility_off';
+    });
+</script>
+</body></html>

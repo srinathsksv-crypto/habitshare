@@ -732,6 +732,7 @@ class FirestoreDataSource {
   Future<void> createShares({
     required String senderId,
     required String senderName,
+    String? senderPhotoUrl,
     required List<String> receiverIds,
     required String postId,
   }) async {
@@ -759,6 +760,18 @@ class FirestoreDataSource {
 
       await batch.commit();
       AppLogger.info('Created ${receiverIds.length} shares for post $postId');
+
+      // Create notifications for each receiver
+      for (final receiverId in receiverIds) {
+        await _createNotificationIfNew(
+          receiverId: receiverId,
+          type: NotificationType.share,
+          senderId: senderId,
+          senderName: senderName,
+          senderPhotoUrl: senderPhotoUrl,
+          postId: postId,
+        );
+      }
     } on FirebaseException catch (e, stack) {
       AppLogger.error('createShares failed', e, stack);
       throw ServerException(e.message ?? 'Failed to create shares',
@@ -1534,6 +1547,8 @@ class FirestoreDataSource {
         return '$name accepted your follow request';
       case NotificationType.newPost:
         return '$name posted a new habit';
+      case NotificationType.share:
+        return 'Post Shared';
     }
   }
 
@@ -1550,6 +1565,8 @@ class FirestoreDataSource {
         return 'You can now see $name\'s habits';
       case NotificationType.newPost:
         return 'Tap to see what $name shared';
+      case NotificationType.share:
+        return '$name shared a post with you';
     }
   }
 

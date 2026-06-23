@@ -422,6 +422,7 @@ class SocialRepositoryImpl implements ISocialRepository {
   Future<Either<Failure, void>> createShares({
     required String senderId,
     required String senderName,
+    String? senderPhotoUrl,
     required List<String> receiverIds,
     required String postId,
   }) async {
@@ -429,6 +430,7 @@ class SocialRepositoryImpl implements ISocialRepository {
       await _remote.createShares(
         senderId: senderId,
         senderName: senderName,
+        senderPhotoUrl: senderPhotoUrl,
         receiverIds: receiverIds,
         postId: postId,
       );

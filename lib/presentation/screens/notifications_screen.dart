@@ -126,12 +126,15 @@ class _NotificationTile extends ConsumerWidget {
           if (notification.postId != null &&
               (notification.type == NotificationType.like ||
                   notification.type == NotificationType.comment ||
-                  notification.type == NotificationType.newPost)) {
+                  notification.type == NotificationType.newPost ||
+                  notification.type == NotificationType.share)) {
             // For like/comment notifications, the receiver is the post owner
-            // For newPost notifications, the sender is the post owner
-            final postOwnerId = notification.type == NotificationType.newPost
-                ? (notification.senderId ?? userId)
-                : notification.receiverId;
+            // For newPost and share notifications, the sender is the post owner
+            final postOwnerId =
+                (notification.type == NotificationType.newPost ||
+                        notification.type == NotificationType.share)
+                    ? (notification.senderId ?? userId)
+                    : notification.receiverId;
             context.push(
                 '/home/post?postId=${notification.postId}&postOwnerId=$postOwnerId');
           }
@@ -156,4 +159,3 @@ class _NotificationTile extends ConsumerWidget {
     );
   }
 }
-

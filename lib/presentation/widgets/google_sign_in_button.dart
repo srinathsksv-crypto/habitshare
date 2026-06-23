@@ -34,7 +34,8 @@ class GoogleSignInButton extends StatelessWidget {
                   color: theme.colorScheme.primary,
                 ),
               )
-            : Icon(Icons.g_mobiledata, size: 28, color: theme.colorScheme.primary),
+            : Icon(Icons.g_mobiledata,
+                size: 28, color: theme.colorScheme.primary),
         label: const Text('Continue with Google'),
       ),
     );

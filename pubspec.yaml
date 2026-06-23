@@ -166,8 +166,17 @@ flutter:
 
   uses-material-design: true
 
+  fonts:
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/Outfit-VariableFont_wght.ttf
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-VariableFont_opsz,wght.ttf
+
   assets:
     - firebase-service-account.json
     - .env
     - .env.example
+    - assets/images/
 

@@ -228,6 +228,8 @@ class PushNotificationService {
         return 'follows';
       case 'newPost':
         return 'new_posts';
+      case 'share':
+        return 'shares';
       default:
         return null;
     }

@@ -6,6 +6,7 @@ enum NotificationType {
   comment,
   followRequest,
   followAccepted,
+  share,
 }
 
 class NotificationEntity extends Equatable {
@@ -44,6 +45,8 @@ class NotificationEntity extends Equatable {
         return '$name sent you a follow request';
       case NotificationType.followAccepted:
         return '$name accepted your follow request';
+      case NotificationType.share:
+        return '$name shared a post with you';
     }
   }
 

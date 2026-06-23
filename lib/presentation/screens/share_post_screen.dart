@@ -38,6 +38,7 @@ class _SharePostScreenState extends ConsumerState<SharePostScreen> {
     final error = await ref.read(socialRepositoryProvider).createShares(
           senderId: widget.currentUser.id,
           senderName: widget.currentUser.name,
+          senderPhotoUrl: widget.currentUser.photoUrl,
           receiverIds: _selectedUserIds.toList(),
           postId: widget.postId,
         );

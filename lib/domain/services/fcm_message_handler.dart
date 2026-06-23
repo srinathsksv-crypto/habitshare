@@ -110,12 +110,12 @@ class FCMMessageHandler {
   /// Handle messages when app is in foreground
   void _handleForegroundMessage(RemoteMessage message) {
     print('Received foreground message: ${message.notification?.title}');
-    
+
     // Do not show local notification if the user is already on the notifications screen
     if (NotificationsScreen.isVisible) {
       return;
     }
-    
+
     _showLocalNotification(message);
   }
 
@@ -170,7 +170,8 @@ class FCMMessageHandler {
     final senderId = data['sender_id'] as String?;
     final postId = data['post_id'] as String?;
 
-    print('Navigation data - type: $type, senderId: $senderId, postId: $postId');
+    print(
+        'Navigation data - type: $type, senderId: $senderId, postId: $postId');
 
     final context = rootNavigatorKey.currentContext;
     if (context == null) {
@@ -178,13 +179,17 @@ class FCMMessageHandler {
       return;
     }
 
-    if (type == 'like' || type == 'comment' || type == 'newPost') {
+    if (type == 'like' ||
+        type == 'comment' ||
+        type == 'newPost' ||
+        type == 'share') {
       if (postId != null) {
-        // For 'newPost', the sender is the post author/owner.
+        // For 'newPost' and 'share', the sender is the post author/owner.
         // For 'like' or 'comment', the receiver is the post owner (current user).
         final receiverId = data['receiver_id'] as String?;
-        final postOwnerId = type == 'newPost' ? senderId : receiverId;
-        
+        final postOwnerId =
+            (type == 'newPost' || type == 'share') ? senderId : receiverId;
+
         if (postOwnerId != null) {
           context.push('/home/post?postId=$postId&postOwnerId=$postOwnerId');
         }
